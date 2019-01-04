@@ -27,7 +27,7 @@ from keras.layers import Dense, Dropout, Flatten, Embedding
 from keras.layers import Conv2D, MaxPooling2D, SimpleRNN
 from keras import backend as K
 from keras.utils import plot_model
-from siter import *
+from titer import *
 import numpy as np
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
@@ -48,8 +48,8 @@ print(epochs)
 # input image dimensions
 img_rows, img_cols = 33, 33
 
-input_shape1 = (3,33,33)
-input_shape2 = (20,4)
+input_shape1 = (10,33,33)
+input_shape2 = (20,9)
 
 if(args.loss=="weakloss"):args.loss=weakloss
 net=import_module('symbols.'+args.network)
