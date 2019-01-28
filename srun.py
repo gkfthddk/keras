@@ -53,6 +53,10 @@ input_shape2 = (20,9)
 
 if(args.loss=="weakloss"):args.loss=weakloss
 net=import_module('symbols.'+args.network)
+try:
+  onehot=net.onehot()
+  input_shape2=(20,5)
+except:onehot=0
 rc=net.rc()
 print(rc)
 if(rc=="rc"):model=net.get_symbol(input_shape1,input_shape2)
@@ -77,8 +81,8 @@ model.compile(loss=args.loss,
 tdata="sdata/dijet_{0}_{1}/dijet_{0}_{1}_training.root".format(args.pt,int(args.pt*1.1))
 vdata="sdata/dijet_{0}_{1}/dijet_{0}_{1}_validation.root".format(args.pt,int(args.pt*1.1))
 #print(tdata,vdata)
-train=wkiter([tdata,tdata],batch_size=batch_size,end=args.end*1.,istrain=1,rc=rc)
-valid=wkiter([vdata,vdata],batch_size=batch_size,end=args.end*1.,rc=rc)
+train=wkiter([tdata,tdata],batch_size=batch_size,end=args.end*1.,istrain=1,rc=rc,onehot=onehot)
+valid=wkiter([vdata,vdata],batch_size=batch_size,end=args.end*1.,rc=rc,onehot=onehot)
 
 savename='save/'+str(args.save)
 os.system("mkdir "+savename)

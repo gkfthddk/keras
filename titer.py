@@ -10,13 +10,14 @@ from keras.preprocessing.sequence import pad_sequences
 from array import array
 
 class wkiter(object):
-  def __init__(self,data_path,data_names=['data'],label_names=['softmax_label'],batch_size=100,begin=0.0,end=1.0,rat=0.7,endcut=1,arnum=16,maxx=0.4,maxy=0.4,istrain=0, varbs=0,rc="rc"):
+  def __init__(self,data_path,data_names=['data'],label_names=['softmax_label'],batch_size=100,begin=0.0,end=1.0,rat=0.7,endcut=1,arnum=16,maxx=0.4,maxy=0.4,istrain=0, varbs=0,rc="rc",onehot=0):
     self.istrain=istrain
     #if(batch_size<100):
     self.rand=0.5
     #  print("batch_size is small it might cause error")
     self.count=0
     self.rc=rc
+    self.onehot=onehot
     #self.file=rt.TFile(data_path,'read')
     dataname1=data_path[0]
     dataname2=data_path[1]
@@ -114,7 +115,8 @@ class wkiter(object):
         if("r" in self.rc):
           dausort=sorted(range(len(dau_pt)),key=lambda k: dau_pt[k],reverse=True)
           #dauset.append([[dau_pt[dausort[i]], dau_deta[dausort[i]], dau_dphi[dausort[i]], dau_charge[dausort[i]]] if len(dau_pt)>i else [0.,0.,0.,0.] for i in range(20)])
-          dauset.append([[dau_pt[dausort[i]], dau_deta[dausort[i]], dau_dphi[dausort[i]], dau_charge[dausort[i]], dau_is_e[dausort[i]], dau_is_mu[dausort[i]], dau_is_r[dausort[i]], dau_is_chad[dausort[i]], dau_is_nhad[dausort[i]]] if len(dau_pt)>i else [0.,0.,0.,0.,0.,0.,0.,0.,0.] for i in range(20)])
+          if(self.onehot):dauset.append([[dau_pt[dausort[i]], dau_deta[dausort[i]], dau_dphi[dausort[i]], dau_charge[dausort[i]], dau_pid[dausort[i]]] if len(dau_pt)>i else [0.,0.,0.,0.,0.] for i in range(20)])
+          else:dauset.append([[dau_pt[dausort[i]], dau_deta[dausort[i]], dau_dphi[dausort[i]], dau_charge[dausort[i]], dau_is_e[dausort[i]], dau_is_mu[dausort[i]], dau_is_r[dausort[i]], dau_is_chad[dausort[i]], dau_is_nhad[dausort[i]]] if len(dau_pt)>i else [0.,0.,0.,0.,0.,0.,0.,0.,0.] for i in range(20)])
         if(len(dau_pt)==0):
           print self.a
           print "@@@@@@@@@@@@@@"
@@ -126,8 +128,8 @@ class wkiter(object):
 
       data=[]
       for rc in self.rc:
-        if(rc=="c"):data.append(np.array(jetset))
         if(rc=="r"):data.append(np.array(dauset))
+        if(rc=="c"):data.append(np.array(jetset))
       label=np.array(labels)
       #if(self.totalnum()<=self.count):
       #  if(self.istrain==1):print "\nreset\n"

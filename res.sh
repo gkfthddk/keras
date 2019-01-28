@@ -82,18 +82,55 @@
 
 #20190102
 
-declare -a arr=("gru" "simplecnn" "simplernn" "rnn" "lstm")
+#declare -a arr=("gru" "simplecnn" "simplernn" "rnn" "lstm")
 #declare -a arr=("gru" "asym" "simplecnn" "rnncnn" "rnn" "lstm" "simple" "lstmcnn")
-for i in "${arr[@]}"
-do
-python srun.py --network ${i} --pt 100 --save slow100${i}2 --end 0.5 --epochs 10 --gpu 1
-python srun.py --network ${i} --pt 200 --save slow200${i}2 --end 0.5 --epochs 10 --gpu 1
-python srun.py --network ${i} --pt 500 --save slow500${i}2 --end 0.5 --epochs 10 --gpu 1
-python srun.py --network ${i} --pt 1000 --save slow1000${i}2 --end 0.5 --epochs 10 --gpu 1
-done
+#for i in "${arr[@]}"
+#do
+#python srun.py --network ${i} --pt 100 --save slow100${i}2 --end 0.5 --epochs 10 --gpu 1
+#python srun.py --network ${i} --pt 200 --save slow200${i}2 --end 0.5 --epochs 10 --gpu 1
+#python srun.py --network ${i} --pt 500 --save slow500${i}2 --end 0.5 --epochs 10 --gpu 1
+#python srun.py --network ${i} --pt 1000 --save slow1000${i}2 --end 0.5 --epochs 10 --gpu 1
+#done
 
 #20190103
-python srun.py --network lstmcnn --pt 1000 --save slow1000lstmcnn --end 0.5 --epochs 10 --gpu 1
-python srun.py --network lstmcnn --pt 500 --save slow500lstmcnn --end 0.5 --epochs 10 --gpu 1
-python srun.py --network lstmcnn --pt 200 --save slow200lstmcnn --end 0.5 --epochs 10 --gpu 1
-python srun.py --network lstmcnn --pt 100 --save slow100lstmcnn --end 0.5 --epochs 10 --gpu 1
+#python srun.py --network lstmcnn --pt 1000 --save slow1000lstmcnn --end 0.5 --epochs 10 --gpu 1
+#python srun.py --network lstmcnn --pt 500 --save slow500lstmcnn --end 0.5 --epochs 10 --gpu 1
+#python srun.py --network lstmcnn --pt 200 --save slow200lstmcnn --end 0.5 --epochs 10 --gpu 1
+#python srun.py --network lstmcnn --pt 100 --save slow100lstmcnn --end 0.5 --epochs 10 --gpu 1
+
+#20190104
+#python srun.py --network simple --pt 100 --save ten100simple --end 0.3 --epochs 10 --gpu 1
+#declare -a arr=("grucnn")
+#declare -a pt=("200" "500" "1000")
+#for i in "${arr[@]}"
+#do
+#for j in "${pt[@]}"
+#do
+#python srun.py --network ${i} --pt ${j} --save ten${j}${i} --end 1. --epochs 10 --gpu 1
+#python tpred.py --save ten${j}${i} --pt ${j}
+#done
+#done
+
+#20190106
+#declare -a pt=("1000" "500")
+#for j in "${pt[@]}"
+#do
+#python epred.py --net1 gru --net2 simplecnn --pt ${j} 
+#done
+#declare -a arr=("cnn")
+#declare -a pt=("100" "200")
+#for j in "${pt[@]}"
+#do
+#for i in "${arr[@]}"
+#do
+#python srun.py --network ${i} --pt ${j} --save ten${j}${i}4 --end 1. --epochs 10 --gpu 1
+#python tpred.py --save ten${j}${i}4 --pt ${j}
+#done
+#done
+#for j in "${pt[@]}"
+#do
+#python epred.py --net1 gru --net2 lstm4 --pt ${j}
+#python epred.py --net1 simplecnn3 --net2 cnn4 --pt ${j}
+#done
+
+python srun.py --network egru --pt 200 --save test --end .1 --epochs 3 --gpu 1
