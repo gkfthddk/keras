@@ -30,13 +30,13 @@ def get_symbol(input_shape1,input_shape2,weights_path=None):
     dens1=Dense(1024, activation='relu')(flat1)
     drop1=Dropout(0.5)(dens1)
     
-    rnn=GRU(units=64,dropout=0.2,return_sequences=True)(input2)
+    rnn=GRU(units=128,dropout=0.2,return_sequences=True)(input2)
     flatr=Flatten()(rnn)
-    densr=Dense(128,activation='relu')(flatr)
+    densr=Dense(256,activation='relu')(flatr)
     dropr=Dropout(0.5)(densr)
 
     concat=Concatenate(axis=1)([drop1,dropr])
-    dens2=Dense(1024, activation='relu')(concat)
+    dens2=Dense(2048, activation='relu')(concat)
     drop2=Dropout(0.5)(dens2)
 
 

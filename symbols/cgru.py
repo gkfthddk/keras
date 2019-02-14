@@ -1,7 +1,7 @@
 from keras.models import Sequential, Model
 from keras.layers import Flatten, Dense, Dropout, BatchNormalization, LeakyReLU
 from keras.layers import GRU, LSTM, SimpleRNN, Input
-from keras.layers import Conv2D, MaxPooling2D, ZeroPadding2D, Conv1D, LocallyConnected1D
+from keras.layers import Conv2D, MaxPooling2D, ZeroPadding2D, Conv1D
 from keras.optimizers import SGD
 import cv2, numpy as np
 

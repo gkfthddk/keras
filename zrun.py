@@ -27,7 +27,7 @@ from keras.layers import Dense, Dropout, Flatten, Embedding
 from keras.layers import Conv2D, MaxPooling2D, SimpleRNN
 from keras import backend as K
 from keras.utils import plot_model
-from titer import *
+from ziter import *
 import numpy as np
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
@@ -73,11 +73,13 @@ model.compile(loss=args.loss,
               optimizer=keras.optimizers.SGD(),
               metrics=['accuracy'])
 """
-tdata="sdata/dijet_{0}_{1}/dijet_{0}_{1}_training.root".format(args.pt,int(args.pt*1.1))
-vdata="sdata/dijet_{0}_{1}/dijet_{0}_{1}_validation.root".format(args.pt,int(args.pt*1.1))
+tqdata="Data/zj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+tgdata="Data/jj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+vqdata="Data/qq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+vgdata="Data/gg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
 #print(tdata,vdata)
-train=wkiter([tdata,tdata],batch_size=batch_size,end=args.end*1.,istrain=1,rc=rc,onehot=onehot)
-valid=wkiter([vdata,vdata],batch_size=batch_size,end=args.end*1.,rc=rc,onehot=onehot)
+train=wkiter([tqdata,tgdata],batch_size=batch_size,end=args.end*1.,istrain=1,rc=rc,onehot=onehot)
+valid=wkiter([vqdata,vgdata],batch_size=batch_size,end=args.end*1.,rc=rc,onehot=onehot)
 
 savename='save/'+str(args.save)
 os.system("mkdir "+savename)

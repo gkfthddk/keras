@@ -109,7 +109,7 @@ class wkiter(object):
           #jetset.append(np.array(self.gim).reshape((3,2*arnum+1,2*arnum+1)))
           #jetset.append([np.array(self.gjet.image_chad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_nhad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_chad_mult_33).reshape(2*arnum+1,2*arnum+1)])
           jetset.append([np.array(self.gjet.image_chad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_nhad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_electron_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_muon_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_photon_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_chad_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_nhad_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_electron_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_muon_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_photon_mult_33).reshape(2*arnum+1,2*arnum+1)])
-        #label q=1 g=0
+        ##label q=1 g=0
         labels.append([1-self.gjet.label,0+self.gjet.label])#q=0 q=1
         #labels.append([0+self.gjet.label,1-self.gjet.label])#q=1 g=0
         if("r" in self.rc):
@@ -143,4 +143,3 @@ class wkiter(object):
         #if(self.istrain==1):
         #  print "\n",datetime.datetime.now()  
         #raise StopIteration
-

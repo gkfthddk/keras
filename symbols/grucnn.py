@@ -24,18 +24,19 @@ def get_symbol(input_shape1,input_shape2,weights_path=None):
     padd2_4=ZeroPadding2D((0,1))(conv2_3)
     conv2_4=Conv2D(128, (1, 3), activation='relu')(padd2_4)
     pool2=MaxPooling2D((2,2), strides=(2,2))(conv2_4)
+    # group 3
 
     flat1=Flatten()(pool2)
     dens1=Dense(1024, activation='relu')(flat1)
     drop1=Dropout(0.5)(dens1)
     
-    rnn=SimpleRNN(units=128,dropout=0.2,return_sequences=True)(input2)
+    rnn=GRU(units=128,dropout=0.2,return_sequences=True)(input2)
     flatr=Flatten()(rnn)
     densr=Dense(256,activation='relu')(flatr)
     dropr=Dropout(0.5)(densr)
 
     concat=Concatenate(axis=1)([drop1,dropr])
-    dens2=Dense(2048, activation='relu')(concat)
+    dens2=Dense(1024, activation='relu')(concat)
     drop2=Dropout(0.5)(dens2)
 
 
