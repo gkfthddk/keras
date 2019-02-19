@@ -8,6 +8,7 @@ import cv2, numpy as np
 input_shape1=(10,33,33)
 input_shape2=(20,9)
 input_shape3=(20,5)
+lstm2={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp(input_shape2)-M0=ba(in0)-cv1(M0,64,1)-LeakyReLU(0.3)(M0)-lst(M0,512,0.2,1)-Flatten()(M0)-ba(M0)-dn(M0,1024)-dr(M0)-dn(M0,1024)-dr(M0)-out(M0)"}
 rnn={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp(input_shape2)-M0=ba(in0)-cv1(M0,32,1)-LeakyReLU(0.3)(M0)-gru(M0,256,0.2,1)-Flatten()(M0)-ba(M0)-dn(M0,256)-dr(M0)-dn(M0,256)-dr(M0)-out(M0)"}
 ernn={"rc":"r","onehot":1,"num_input":1,"network":"in0=inp(input_shape3)-M0=emb(in0)-cv1(M0,32,1)-LeakyReLU(0.3)(M0)-gru(M0,256,0.2,1)-Flatten()(M0)-ba(M0)-dn(M0,512)-dr(M0)-dn(M0,512)-dr(M0)-out(M0)"}
 rnn2={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp(input_shape2)-M0=ba(in0)-cv1(M0,64,1)-LeakyReLU(0.3)(M0)-gru(M0,512,0.2,1)-Flatten()(M0)-ba(M0)-dn(M0,1024)-dr(M0)-dn(M0,1024)-dr(M0)-out(M0)"}
@@ -46,6 +47,8 @@ def pool(model,pool_size=(2,2),strid=(2,2)):
     return MaxPooling2D(pool_size,strid)(model)
 def gru(model,units,drop,seq):
     return GRU(units,dropout=drop,return_sequences=seq)(model)
+def lst(model,units,drop,seq):
+    return LSTM(units,dropout=drop,return_sequences=seq)(model)
 def dn(model,fil,act=None):
     return Dense(fil,activation=act)(model)
 def dr(model,drop=0.5):
