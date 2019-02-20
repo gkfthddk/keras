@@ -43,10 +43,10 @@ for f in files:
     history=open(savename+"/history")
     indx=[eval(i) for i in history.readline().split(' ')]
     hist=eval(history.readline())
-    acc.append(max(hist['val1_auc']))
+    acc.append(max(hist['val1_acc']))
     try:
-      acc.append(max(hist['val2_auc']))
-      acc.append(max(hist['val3_auc']))
+      acc.append(max(hist['val2_acc']))
+      acc.append(max(hist['val3_acc']))
     except:pass
     line="{}".format(f)
     for i,j in zip(indx,acc):
