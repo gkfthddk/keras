@@ -10,11 +10,15 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.callbacks import Callback
 from array import array
 
+from sklearn.metrics import roc_auc_score, auc, roc_curve
+
+
 class AddVal(Callback):
-  def __init__(self,valid_sets):
+  def __init__(self,valid_sets,savename):
     self.valid_sets = valid_sets
     self.epoch=[]
     self.history={}
+    self.savename=savename
   
   def on_train_begin(self,logs=None):
     self.epoch=[]
@@ -29,8 +33,21 @@ class AddVal(Callback):
 
     for valid_set in self.valid_sets:
       valid,val_name=valid_set
+      valid.reset()
+      gen=valid.next()
+      tar_set=[]
+      pre_set=[]
+      for j in range(valid.totalnum()):
+        data,target=next(gen)
+        tar_set=np.append(tar_set,target[:,0])
+        pre_set=np.append(pre_set,self.model.predict(data,verbose=0)[:,0])
+
+      valid.reset()
+      auc_val=roc_auc_score(tar_set,pre_set)
       results=self.model.evaluate_generator(valid.next(),valid.totalnum())
-      print(results)
+      print(results,auc_val)
+
+      self.history.setdefault(val_name+"_auc",[]).append(auc_val)
 
       for i,result in enumerate(results):
         if(i==0):
@@ -38,7 +55,9 @@ class AddVal(Callback):
         else:
           name=val_name+"_"+self.model.metrics[i-1][:3]
         self.history.setdefault(name,[]).append(result)
-
+    f=open(self.savename+'/history','w')
+    f.write(str(self.history))
+    f.close()
 
 class wkiter(object):
   def __init__(self,data_path,data_names=['data'],label_names=['softmax_label'],batch_size=100,begin=0.0,end=1.0,rat=0.7,endcut=1,arnum=16,maxx=0.4,maxy=0.4,istrain=0, varbs=0,rc="rc",onehot=0):
@@ -57,13 +76,25 @@ class wkiter(object):
     print(dataname2)
     self.gjet=self.gfile.Get("jetAnalyser")
     self.gEntries=self.gjet.GetEntriesFast()
-    self.gBegin=int(begin*self.gEntries)
-    self.gEnd=int(self.gEntries*end)
+    if(begin>1):
+      self.gBegin=int(begin)
+    else:
+      self.gBegin=int(begin*self.gEntries)
+    if(end>1):
+      self.gEnd=int(end)
+    else: 
+      self.gEnd=int(self.gEntries*end)
     self.a=self.gBegin
     self.qjet=self.qfile.Get("jetAnalyser")
     self.qEntries=self.qjet.GetEntriesFast()
-    self.qBegin=int(begin*self.qEntries)
-    self.qEnd=int(self.qEntries*end)
+    if(begin>1):
+      self.qBegin=int(begin)
+    else:
+      self.qBegin=int(begin*self.qEntries)
+    if(end>1):
+      self.qEnd=int(end)
+    else: 
+      self.qEnd=int(self.qEntries*end)
     self.b=self.qBegin
     self.ratt=rat
     self.rat=sorted([1-rat,rat])

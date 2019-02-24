@@ -133,4 +133,33 @@
 #python epred.py --net1 simplecnn3 --net2 cnn4 --pt ${j}
 #done
 
-python srun.py --network egru --pt 200 --save test --end .1 --epochs 3 --gpu 1
+#python srun.py --network egru --pt 200 --save test1 --end 1 --epochs 10 --gpu 1
+#python srun.py --network cgru --pt 200 --save test2 --end 1 --epochs 10 --gpu 1
+
+#python srun.py --network lcnn --pt 200 --save local1 --end 1 --epochs 10 --gpu 1
+#python srun.py --network lcnn2 --pt 200 --save local2 --end 1 --epochs 10 --gpu 1
+
+#20190207
+#python run.py --network rnn --pt 200 --save test --end 1 --epochs 10 --gpu 1
+#python srun.py --network lcnn3 --pt 200 --save local3 --end 1 --epochs 10 --gpu 1
+#python run.py --network lcnn --pt 200 --save lcnn --end 1 --epochs 10 --gpu 1
+#python run.py --network lcnn3 --pt 200 --save lcnn3 --end 1 --epochs 10 --gpu 1
+#python run.py --network rnn --pt 200 --save testrnn --end 1 --epochs 10 --gpu 1
+#python run.py --network rnn2 --pt 200 --save testrnn2 --end 1 --epochs 10 --gpu 1
+#python run.py --network rnn4 --pt 200 --save testrnn4 --end 1 --epochs 10 --gpu 1
+#python run.py --network ernn --pt 200 --save testernn --end 1 --epochs 10 --gpu 0
+
+#python testrun.py --network rnn --pt 100 --save testrnn1024 --end 0.3 --epochs 20 --batch_size 1024 --gpu 2
+#python testrun.py --network rnn --pt 100 --save testrnn512 --end 0.3 --epochs 20 --batch_size 512 --gpu 2
+
+#python run.py --network rnn3 --pt 100 --save testrnn3 --end 0.3 --epochs 30 --gpu 2
+#python run.py --network rnn2 --pt 100 --save testrnn2 --end 0.3 --epochs 30 --gpu 2
+#python run.py --network rnn --pt 100 --save testrnn --end 0.3 --epochs 30 --gpu 2
+
+declare -a pt=("100" "200")
+for j in "${pt[@]}"
+do
+python pred.py --save paperzjcnn${j} --pt ${j} --end 100000
+python pred.py --save paperzqcnn${j} --pt ${j} --end 100000
+python pred.py --save paperqqcnn${j} --pt ${j} --end 100000
+done

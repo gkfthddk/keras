@@ -15,6 +15,10 @@ class CompareOUT(object):
         x, y = open("./save/{}{}/{}out.dat".format(name,rat,test)).readlines()
         x, y= eval(x), eval(y)
         self.data_list.append({"x": x, "y": y,"name":name,"rat":rat,"test":test,"color":color,"leg":legend,"tm":0,"ls":ls,"lw":lw})
+    def get_ens_result(self,name,rat,test,color=None,legend=None,ls="-",lw=3):
+        x, y = open("./ensemble/{}{}{}out.dat".format(name,rat,test)).readlines()
+        x, y= eval(x), eval(y)
+        self.data_list.append({"x": x, "y": y,"name":name,"rat":rat,"test":test,"color":color,"leg":legend,"tm":0,"ls":ls,"lw":lw})
     def get_tm_result(self,name,rat,test,color=None,legend=None,ls="-",lw=3):
         x,xb = open("../tmva/{}outS.txt".format(name)).readlines()
         y,yb = open("../tmva/{}outB.txt".format(name)).readlines()
@@ -96,6 +100,11 @@ class CompareROC(object):
         x, y= eval(x), eval(y)
         try:self.data_list.append({"x": x, "y": y,"name":name,"rat":eval(rat),"test":test, "auc": auc(x, y),"col":color})
         except:self.data_list.append({"x": x, "y": y,"name":name,"rat":0,"test":test, "auc": auc(x, y),"col":color,"leg":legend})
+    def get_ens_result(self,name,rat,test,color=None,legend=None):
+        x ,y= open("ensemble/{}{}{}roc.dat".format(name,rat,test)).readlines()
+        x, y= eval(x), eval(y)
+        try:self.data_list.append({"x": x, "y": y,"name":name,"rat":eval(rat),"test":test, "auc": auc(x, y),"col":color})
+        except:self.data_list.append({"x": x, "y": y,"name":name,"rat":0,"test":test, "auc": auc(x, y),"col":color,"leg":legend})
     def get_tm_result(self,name,rat,test,color=None,legend=None):
         x= open("../tmva/{}roc.txt".format(name.format(int(rat*100)))).readline()
         x= eval(x)
@@ -103,7 +112,7 @@ class CompareROC(object):
         self.data_list.append({"x": x, "y": y,"name":name,"rat":rat,"test":test, "auc": auc(x, y),"col":color,"leg":legend})
         
     def sort_data_list(self):
-        self.data_list = sorted(self.data_list, key=lambda data: -1*data["auc"])
+        self.data_list = sorted(self.data_list, key=lambda data: -1.*data["auc"])
         
     def compare_roc(self,title="Quark/Gluon Jet Dicrimination", filename=None):
         from sklearn import metrics
@@ -130,6 +139,7 @@ class CompareROC(object):
                   #plt.plot(data["x"], data["y"],label="{}(AUC={auc:.3f})".format(data["leg"],auc=data["auc"]), lw=3, alpha=0.5,color=cmap(len(self.data_list)-idx-1))
                 else:
                   plt.plot(data["x"], data["y"],label="{}-{}-{}(AUC={auc:.3f})".format(data["name"],data["rat"],data["test"],auc=data["auc"]), lw=3, alpha=0.5,color=cmap(len(self.data_list)-idx-1))
+            print(data["leg"],data["auc"])
         
         #plt.legend(loc="lower left", fontsize=20)
         plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.,fontsize=22)
@@ -183,31 +193,35 @@ def get_cmap(n, name='brg'):
     '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
     RGB color; the keyword argument name must be a standard mpl colormap name.'''
     return plt.cm.get_cmap(name, n)
+names=[]
+nalist=[]
+nalabel=[]
+events=["zj","zq","qq"]
+#nets=["cnn"]
+nets=["rnn","cnn"]
+pts=["100","200","500","1000"]
+nalist=["Z+j,jj","Z+q,Z+g","qq,gg"]
+#pt=pts[0]
+for pt in pts:
+  dlroc = CompareROC()
+  dlout=CompareOUT()
+  for event in events:
+    for net in nets:
+      name="paper"+event+net+pt
+      if(event=="zj"):
+        dlroc.get_yj_result(name,"","v1t2",legend="Z+j,jj-Z+q,Z+g "+net.upper())
+        dlroc.get_yj_result(name,"","v1t3",legend="Z+j,jj-qq,gg "+net.upper())
+        dlout.get_yj_result(name,"","v1t2",legend="Z+j,jj-Z+q,Z+g "+net.upper())
+        dlout.get_yj_result(name,"","v1t3",legend="Z+j,jj-qq,gg "+net.upper())
+      if(event=="zq"):
+        dlroc.get_yj_result(name,"","v2t2",legend="Z+q,Z+g-Z+q,Z+g "+net.upper())
+        dlout.get_yj_result(name,"","v2t2",legend="Z+q,Z+g-Z+q,Z+g "+net.upper())
+      if(event=="qq"):
+        dlroc.get_yj_result(name,"","v3t3",legend="qq,gg-qq,gg "+net.upper())
+        dlout.get_yj_result(name,"","v3t3",legend="qq,gg-qq,gg "+net.upper())
 
-dlroc = CompareROC()
-nalist=["asym","vgg","lstm","gru","rnn","lstmasym","gruasym","rnnasym"]
-nalabel=["CNN","CNN*","LSTM","GRU","GRU*","LSTM+CNN","GRU+CNN","GRU*+CNN"]
-#rclist=["asym","rnn","lstmasym","gruasym","rnnasym","simple"]
-#rclabel=["CNN","GRU*","LSTM+CNN","GRU+CNN","GRU*+CNN","Simple"]
-rclist=["asym","vgg","gru","rnn"]
-rclabel=["CNN","CNN*","GRU","GRU*"]
-jlist=["lstmasym"]
-#dlroc.get_yj_result("zj100gruasym","","",legend="Zj,jj")
-for i in range(len(rclist)):
-  dlroc.get_yj_result("qg100"+rclist[i],"","",legend=rclabel[i])
-
-#dlroc.sort_data_list()
-dlroc.compare_roc("ROC curve",filename="plots/rnnandcnnroc")
-#dlroc.compare_roc("ROC",filename="plots/zjroc")
-
-
-dlout=CompareOUT()
-nn=0
-#cmap=get_cmap(10)
-#dlout.get_yj_result("zj100gruasym","","",ls="-",lw=2,legend="Zj,jj")
-for i in range(len(rclist)):
-  dlout.get_yj_result("qg100"+rclist[i],"","",ls="-",lw=5,legend=rclabel[i])
-
-dlout.compare_out("Output distribution",filename="plots/rnnandcnnout")
+  dlroc.sort_data_list()
+  dlroc.compare_roc("ROC curve",filename="plots/paper"+pt+"mixroc")
+  dlout.compare_out("Output distribution",filename="plots/paper"+pt+"mixout")
 #dlout.compare_out("output dist",filename="plots/zjout")
 
