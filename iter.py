@@ -14,10 +14,11 @@ from sklearn.metrics import roc_auc_score, auc, roc_curve
 
 
 class AddVal(Callback):
-  def __init__(self,valid_sets):
+  def __init__(self,valid_sets,savename):
     self.valid_sets = valid_sets
     self.epoch=[]
     self.history={}
+    self.savename=savename
   
   def on_train_begin(self,logs=None):
     self.epoch=[]
@@ -54,7 +55,9 @@ class AddVal(Callback):
         else:
           name=val_name+"_"+self.model.metrics[i-1][:3]
         self.history.setdefault(name,[]).append(result)
-
+    f=open(self.savename+'/history','w')
+    f.write(str(self.history))
+    f.close()
 
 class wkiter(object):
   def __init__(self,data_path,data_names=['data'],label_names=['softmax_label'],batch_size=100,begin=0.0,end=1.0,rat=0.7,endcut=1,arnum=16,maxx=0.4,maxy=0.4,istrain=0, varbs=0,rc="rc",onehot=0):

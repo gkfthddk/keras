@@ -9,11 +9,12 @@ input_shape1=(10,33,33)
 input_shape2=(20,9)
 input_shape3=(20,5)
 lstm2={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp(input_shape2)-M0=ba(in0)-cv1(M0,64,1)-LeakyReLU(0.3)(M0)-lst(M0,512,0.2,1)-Flatten()(M0)-ba(M0)-dn(M0,1024)-dr(M0)-dn(M0,1024)-dr(M0)-out(M0)"}
-rnn={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp(input_shape2)-M0=ba(in0)-cv1(M0,64,1)-LeakyReLU(0.3)(M0)-gru(M0,512,0.2,1)-Flatten()(M0)-ba(M0)-dn(M0,1024)-dr(M0)-dn(M0,1024)-dr(M0)-out(M0)"}
-rnn2={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp(input_shape2)-M0=ba(in0)-cv1(M0,64,1)-LeakyReLU(0.3)(M0)-gru(M0,512,0.2,1)-Flatten()(M0)-ba(M0)-dn(M0,1024)-dr(M0)-dn(M0,1024)-dr(M0)-dn(M0,1024)-dr(M0)-out(M0)"}#same for qqgg zqzg
+rnn={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp(input_shape2)-M0=ba(in0)-cv1(M0,64,1)-LeakyReLU(0.3)(M0)-gru(M0,512,0.2,1)-Flatten()(M0)-ba(M0)-dn(M0,256)-dr(M0)-dn(M0,256)-dr(M0)-out(M0)"}
+rnn3={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp(input_shape2)-M0=ba(in0)-cv1(M0,64,1)-LeakyReLU(0.3)(M0)-gru(M0,512,0.2,1)-Flatten()(M0)-ba(M0)-dn(M0,128)-dr(M0)-dn(M0,128)-dr(M0)-dn(M0,128)-dr(M0)-out(M0)"}#slower acc
 ernn={"rc":"r","onehot":1,"num_input":1,"network":"in0=inp(input_shape3)-M0=emb(in0)-cv1(M0,32,1)-LeakyReLU(0.3)(M0)-gru(M0,256,0.2,1)-Flatten()(M0)-ba(M0)-dn(M0,512)-dr(M0)-dn(M0,512)-dr(M0)-out(M0)"}
 #worse with : no leakyrelu
-cnn={"rc":"c","onehot":0,"num_input":1,"network":"in0=inp(input_shape1)-M0=pad(in0)-cv2(M0,32)-pool(M0)-cv2(M0,64)-pool(M0)-Flatten()(M0)-dn(M0,2048)-dr(M0)-out(M0)"}
+cnn={"rc":"c","onehot":0,"num_input":1,"network":"in0=inp(input_shape1)-M0=pad(in0)-cv2(M0,32)-pool(M0)-cv2(M0,64)-pool(M0)-Flatten()(M0)-dn(M0,128)-dn(M0,128)-dr(M0)-out(M0)"}
+cnn3={"rc":"c","onehot":0,"num_input":1,"network":"in0=inp(input_shape1)-M0=pad(in0)-cv2(M0,32)-pool(M0)-cv2(M0,64)-pool(M0)-Flatten()(M0)-dn(M0,256)-dr(M0)-out(M0)"}#worse slightly 
 cnn11={"rc":"c","onehot":0,"num_input":1,"network":"in0=inp(input_shape1)-M0=pad(in0)-cv2(M0,32,(8,8))-pool(M0)-cv2(M0,32,(4,4))-pool(M0)-cv2(M0,32,(4,4))-pool(M0)-Flatten()(M0)-dn(M0,2048)-dr(M0)-out(M0)"}
 #worse with : batchnorm block, localcnn 
 cnn5={"rc":"c","onehot":0,"num_input":1,"network":"in0=inp(input_shape1)-M0=pad(in0)-cv2(M0,32)-ba(M0)-cv2(M0,32)-ba(M0)-M1=pool(M0)-cv2(M1,64)-ba(M1)-cv2(M1,64)-ba(M1)-pool(M1)-Concatenate(axis=1)([Flatten()(M0),Flatten()(M1)])-dn(M1,2048)-dr(M1)-out(M1)"}

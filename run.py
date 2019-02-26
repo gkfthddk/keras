@@ -16,6 +16,7 @@ parser.add_argument("--epochs",type=int,default=10,help='num epochs')
 parser.add_argument("--batch_size",type=int,default=512,help='batch_size')
 parser.add_argument("--loss",type=str,default="categorical_crossentropy",help='network name on symbols/')
 parser.add_argument("--gpu",type=int,default=0,help='gpu number')
+parser.add_argument("--isz",type=int,default=0,help='0 or z or not')
 args=parser.parse_args()
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
@@ -26,7 +27,7 @@ from keras.layers import Dense, Dropout, Flatten, Embedding
 from keras.layers import Conv2D, MaxPooling2D, SimpleRNN
 from keras import backend as K
 from keras.utils import plot_model
-from iter import *
+from ziter import *
 import numpy as np
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
@@ -66,14 +67,12 @@ for sha in model._feed_inputs:
 print("rc",rc)
 #model.compile(loss='mean_squared_error',
 model.compile(loss=args.loss,
-              optimizer=keras.optimizers.SGD(),
+              optimizer=keras.optimizers.RMSprop(),
 	      metrics=['accuracy'])
 """model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.SGD(),
               metrics=['accuracy'])
 """
-tqdata="Data/zj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
-tgdata="Data/jj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
 vzjdata="Data/zj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
 vjjdata="Data/jj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
 vzqdata="Data/zq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
@@ -81,13 +80,34 @@ vzgdata="Data/zg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
 vqqdata="Data/qq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
 vggdata="Data/gg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
 #print(tdata,vdata)
-train=wkiter([tqdata,tgdata],batch_size=batch_size,end=args.end*0.7,istrain=1,rc=rc,onehot=onehot)
-valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.7*args.end,end=args.end*0.3+0.7*args.end,rc=rc,onehot=onehot)
-valid2=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=args.end*0.3,rc=rc,onehot=onehot)
-valid3=wkiter([vqqdata,vggdata],batch_size=batch_size,end=args.end*0.3,rc=rc,onehot=onehot)
+#valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.7*args.end,end=args.end*1.,rc=rc,onehot=onehot)
+#valid2=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=args.end*0.3,rc=rc,onehot=onehot)
+#valid3=wkiter([vqqdata,vggdata],batch_size=batch_size,end=args.end*0.3,rc=rc,onehot=onehot)
+if(args.isz==0):
+  tqdata="Data/zj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+  tgdata="Data/jj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+  train=wkiter([tqdata,tgdata],batch_size=batch_size,end=args.end*0.7,istrain=1,rc=rc,onehot=onehot)
+  valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.8*args.end,end=args.end*1.,rc=rc,onehot=onehot)
+  valid2=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=512,rc=rc,onehot=onehot)
+  valid3=wkiter([vqqdata,vggdata],batch_size=batch_size,end=512,rc=rc,onehot=onehot)
+elif(args.isz==1):
+  tqdata="Data/zq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+  tgdata="Data/zg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+  train=wkiter([tqdata,tgdata],batch_size=batch_size,begin=0.5*args.end,end=args.end*1.,istrain=1,rc=rc,onehot=onehot)
+  valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.7*args.end,end=args.end*0.7+512,rc=rc,onehot=onehot)
+  valid2=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=args.end*0.1,rc=rc,onehot=onehot)
+  valid3=wkiter([vqqdata,vggdata],batch_size=batch_size,end=512,rc=rc,onehot=onehot)
+else:
+  tqdata="Data/qq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+  tgdata="Data/gg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+  train=wkiter([tqdata,tgdata],batch_size=batch_size,begin=0.5*args.end,end=args.end*1.,istrain=1,rc=rc,onehot=onehot)
+  valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.7*args.end,end=args.end*0.7+512,rc=rc,onehot=onehot)
+  valid2=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=512,rc=rc,onehot=onehot)
+  valid3=wkiter([vqqdata,vggdata],batch_size=batch_size,end=args.end*0.1,rc=rc,onehot=onehot)
+print("data ",tqdata)
 
-history=AddVal([(valid1,"val1"),(valid2,"val2"),(valid3,"val3")])
 savename='save/'+str(args.save)
+history=AddVal([(valid1,"val1"),(valid2,"val2"),(valid3,"val3")],savename)
 os.system("mkdir "+savename)
 os.system("rm "+savename+'/log.log')
 plot_model(model,to_file=savename+'/model.png')
