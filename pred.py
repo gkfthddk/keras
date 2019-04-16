@@ -91,11 +91,11 @@ test3.reset()
 for ii in range(2,4):
   if(ii==2):
     if(args.isz==-1):
-      break
+      continue 
     gen=test2.next()
   if(ii==3):
     if(args.isz==1):
-      break
+      continue
     gen=test3.next()
   x=[]
   y=[]
@@ -122,16 +122,16 @@ for ii in range(2,4):
   f.write(str(g))
   f.close()
   t_fpr,t_tpr,_=roc_curve(x,y)
-  t_fnr=1-t_fpr
+  t_tnr=1-t_fpr
   test_auc=np.around(auc(t_fpr,t_tpr),4)
   plt.figure(2)
-  plt.plot(t_tpr,t_fnr,alpha=0.5,label="AUC={}".format(test_auc),lw=2)
+  plt.plot(t_tpr,t_tnr,alpha=0.5,label="AUC={}".format(test_auc),lw=2)
   plt.legend(loc='lower left')
   os.system("rm "+outname+"roc*.png")
   plt.savefig(outname+"roc"+str(round(test_auc,3))+".png")
   f=open(outname+"roc.dat",'w')
   f.write(str(t_tpr.tolist())+"\n")
-  f.write(str(t_fnr.tolist()))
+  f.write(str(t_tnr.tolist()))
   f.close()
 #print(b,c)
 
