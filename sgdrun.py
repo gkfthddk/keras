@@ -12,13 +12,17 @@ parser.add_argument("--save",type=str,default="test_",help='save name')
 parser.add_argument("--network",type=str,default="rnn",help='network name on symbols/')
 parser.add_argument("--right",type=str,default="/scratch/yjdata/gluon100_img",help='which train sample (qq,gg,zq,zg)')
 parser.add_argument("--pt",type=int,default=200,help='pt range pt~pt*1.1')
+parser.add_argument("--ptmin",type=float,default=0.,help='pt range pt~pt*1.1')
+parser.add_argument("--ptmax",type=float,default=2.,help='pt range pt~pt*1.1')
 parser.add_argument("--epochs",type=int,default=10,help='num epochs')
 parser.add_argument("--batch_size",type=int,default=512,help='batch_size')
 parser.add_argument("--loss",type=str,default="categorical_crossentropy",help='network name on symbols/')
 parser.add_argument("--gpu",type=int,default=0,help='gpu number')
 parser.add_argument("--isz",type=int,default=0,help='0 or z or not')
-parser.add_argument("--channel",type=int,default=30,help='number of sequence channel')
+parser.add_argument("--channel",type=int,default=64,help='number of sequence channel')
 parser.add_argument("--order",type=int,default=1,help='pt ordering')
+parser.add_argument("--eta",type=float,default=0.,help='end ratio')
+parser.add_argument("--etabin",type=float,default=2.4,help='end ratio')
 args=parser.parse_args()
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
@@ -29,7 +33,7 @@ from keras.layers import Dense, Dropout, Flatten, Embedding
 from keras.layers import Conv2D, MaxPooling2D, SimpleRNN
 from keras import backend as K
 from keras.utils import plot_model
-from ziter import *
+from aiter import *
 import numpy as np
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
@@ -88,10 +92,10 @@ vggdata="Data/gg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
 if(args.isz==0):
   tqdata="Data/zj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
   tgdata="Data/jj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
-  train=wkiter([tqdata,tgdata],batch_size=batch_size,end=args.end*0.7,istrain=1,rc=rc,onehot=onehot,channel=args.channel,order=args.order)
-  valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.8*args.end,end=args.end*1.,rc=rc,onehot=onehot,channel=args.channel,order=args.order)
-  valid2=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=2048,rc=rc,onehot=onehot,channel=args.channel,order=args.order)
-  valid3=wkiter([vqqdata,vggdata],batch_size=batch_size,end=2048,rc=rc,onehot=onehot,channel=args.channel,order=args.order)
+  train=wkiter([tqdata,tgdata],batch_size=batch_size,end=args.end*0.7,istrain=1,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
+  valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.8*args.end,end=args.end*1.,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
+  valid2=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=2048,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
+  valid3=wkiter([vqqdata,vggdata],batch_size=batch_size,end=2048,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
 elif(args.isz==1):
   tqdata="Data/zq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
   tgdata="Data/zg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))

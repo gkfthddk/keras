@@ -36,32 +36,32 @@ class AddVal(Callback):
       valid,val_name=valid_set
       valid.reset()
       gen=valid.next()
-      tar_set=[]
-      pre_set=[]
+      #tar_set=[]
+      #pre_set=[]
       atar_set=[]
       apre_set=[]
       for j in range(valid.totalnum()):
         data,target=next(gen)
-        print(target)
-        tar_set=np.append(tar_set,target[:,0])
-        pre_set=np.append(pre_set,self.model.predict(data,verbose=0)[:,0])
-        atar_set.append(target[:,0])
-        apre_set.append(self.model.predict(data,verbose=0)[:,0])
+        #print(target)
+        #tar_set=np.append(tar_set,target[:,0])
+        #pre_set=np.append(pre_set,self.model.predict(data,verbose=0)[:,0])
+        atar_set.extend(target[:,0])
+        apre_set.extend(self.model.predict(data,verbose=0)[:,0])
 
       valid.reset()
-      tar_set=np.array(tar_set)
-      pre_set=np.array(pre_set)
+      #tar_set=np.array(tar_set)
+      #pre_set=np.array(pre_set)
       atar_set=np.array(atar_set)
       apre_set=np.array(apre_set)
-      print(valid.totalnum(),valid.batch_size)
-      print("############")
-      print(tar_set)
-      print("AAAAAAAAAAAAAAAAAAAA")
-      print(atar_set)
+      #print(valid.totalnum(),valid.batch_size)
+      #print("############")
+      #print(tar_set)
+      #print("AAAAAAAAAAAAAAAAAAAA")
+      #print(atar_set)
 
-      auc_val=roc_auc_score(tar_set,pre_set)
+      auc_val=roc_auc_score(atar_set,apre_set)
       results=self.model.evaluate_generator(valid.next(),valid.totalnum())
-      print(results,auc_val)
+      #print(results,auc_val)
 
       self.history.setdefault(val_name+"_auc",[]).append(auc_val)
 
@@ -76,9 +76,11 @@ class AddVal(Callback):
     f.close()
 
 class wkiter(object):
-  def __init__(self,data_path,data_names=['data'],label_names=['softmax_label'],batch_size=100,begin=0.0,end=1.0,rat=0.7,endcut=1,arnum=16,maxx=0.4,maxy=0.4,istrain=0, varbs=0,rc="rc",onehot=0,channel=30,order=1,eta=0.,etabin=2.4,pt=None):
+  def __init__(self,data_path,data_names=['data'],label_names=['softmax_label'],batch_size=100,begin=0.0,end=1.0,rat=0.7,endcut=1,arnum=16,maxx=0.4,maxy=0.4,istrain=0, varbs=0,rc="rc",onehot=0,channel=64,order=1,eta=0.,etabin=2.4,pt=None,ptmin=0.,ptmax=2.):
     self.eta=eta
     self.pt=pt
+    self.ptmin=ptmin
+    self.ptmax=ptmax
     self.etabin=etabin
     self.channel=channel
     self.istrain=istrain
@@ -134,19 +136,25 @@ class wkiter(object):
     self.endcut=endcut
     qjetset=[]
     gjetset=[]
+    qptset=[]
+    gptset=[]
+    qetaset=[]
+    getaset=[]
     for i in range(self.gEntries):
+      if(self.a>=self.gEnd):
+        self.a=self.gBegin
+        break
       #if((self.a-self.gBegin)%int((self.gEnd-self.gBegin)/10)==0):print('.')
       self.gjet.GetEntry(self.a)
       ##label q=1 g=0
       self.a+=1
-      if(self.a>=self.gEnd):
-        self.a=self.gBegin
-        break
-      if(self.eta>self.gjet.eta or self.eta+self.etabin<self.gjet.eta):
+      if(self.eta>abs(self.gjet.eta) or self.eta+self.etabin<abs(self.gjet.eta)):
         continue
       if(self.pt!=None):
-        if(self.pt*0.8>self.gjet.pt or self.pt<self.gjet.pt):
+        if(self.pt*self.ptmin>self.gjet.pt or self.pt*self.ptmax<self.gjet.pt):
           continue
+      gptset.append(self.gjet.pt)
+      getaset.append(self.gjet.eta)
       if("c" in self.rc):
         gjetset.append([np.array(self.gjet.image_chad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_nhad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_electron_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_muon_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_photon_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_chad_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_nhad_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_electron_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_muon_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_photon_mult_33).reshape(2*arnum+1,2*arnum+1)])
       if("r" in self.rc):
@@ -171,19 +179,25 @@ class wkiter(object):
           gjetset.append([[dau_pt[dausort[i]], dau_deta[dausort[i]], dau_dphi[dausort[i]], dau_charge[dausort[i]], dau_is_e[dausort[i]], dau_is_mu[dausort[i]], dau_is_r[dausort[i]], dau_is_chad[dausort[i]], dau_is_nhad[dausort[i]]] if len(dau_pt)>i else [0.,0.,0.,0.,0.,0.,0.,0.,0.] for i in range(self.channel)])
     self.gjetset=np.array(gjetset)
     del gjetset
+    self.gptset=np.array(gptset)
+    del gptset
+    self.getaset=np.array(getaset)
+    del getaset
     for i in range(self.qEntries):
+      if(self.b>=self.qEnd):
+        self.b=self.qBegin
+        break
       #if((self.b-self.qBegin)%int((self.qEnd-self.qBegin)/10)==0):print(',')
       self.qjet.GetEntry(self.b)
       ##label q=1 g=0
       self.b+=1
-      if(self.b>=self.qEnd):
-        self.b=self.qBegin
-        break
-      if(self.eta>self.qjet.eta or self.eta+self.etabin<self.qjet.eta):
+      if(self.eta>abs(self.qjet.eta) or self.eta+self.etabin<abs(self.qjet.eta)):
         continue
       if(self.pt!=None):
-        if(self.pt*0.8>self.qjet.pt or self.pt<self.qjet.pt):
+        if(self.pt*self.ptmin>self.qjet.pt or self.pt*self.ptmax<self.qjet.pt):
           continue
+      qptset.append(self.qjet.pt)
+      qetaset.append(self.qjet.eta)
       if("c" in self.rc):
         qjetset.append([np.array(self.qjet.image_chad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_nhad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_electron_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_muon_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_photon_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_chad_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_nhad_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_electron_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_muon_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_photon_mult_33).reshape(2*arnum+1,2*arnum+1)])
       if("r" in self.rc):
@@ -209,6 +223,10 @@ class wkiter(object):
           qjetset.append([[dau_pt[dausort[i]], dau_deta[dausort[i]], dau_dphi[dausort[i]], dau_charge[dausort[i]], dau_is_e[dausort[i]], dau_is_mu[dausort[i]], dau_is_r[dausort[i]], dau_is_chad[dausort[i]], dau_is_nhad[dausort[i]]] if len(dau_pt)>i else [0.,0.,0.,0.,0.,0.,0.,0.,0.] for i in range(self.channel)])
     self.qjetset=np.array(qjetset)
     del qjetset
+    self.qptset=np.array(qptset)
+    del qptset
+    self.qetaset=np.array(qetaset)
+    del qetaset
     self.reset()
   def __iter__(self):
     return self
@@ -250,21 +268,21 @@ class wkiter(object):
       labels=[]
       for i in range(self.batch_size):
         if(random.random()<0.5):
-          labels.append([0,1])
-          jetset.append(self.gjetset[self.a-self.gBegin])
-          self.a+=1
           if(self.a-self.gBegin>=len(self.gjetset)):
             self.a=self.gBegin
             self.endfile=1
             break
+          labels.append([0,1])
+          jetset.append(self.gjetset[self.a-self.gBegin])
+          self.a+=1
         else:
-          labels.append([1,0])
-          jetset.append(self.qjetset[self.b-self.qBegin])
-          self.b+=1
-          if(self.b-self.gBegin>=len(self.qjetset)):
+          if(self.b-self.qBegin>=len(self.qjetset)):
             self.b=self.qBegin
             self.endfile=1
             break
+          labels.append([1,0])
+          jetset.append(self.qjetset[self.b-self.qBegin])
+          self.b+=1
       data=[]
       data.append(np.array(jetset))
       label=np.array(labels)

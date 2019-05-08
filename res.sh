@@ -156,10 +156,59 @@
 #python run.py --network rnn2 --pt 100 --save testrnn2 --end 0.3 --epochs 30 --gpu 2
 #python run.py --network rnn --pt 100 --save testrnn --end 0.3 --epochs 30 --gpu 2
 
-declare -a pt=("100" "200")
-for j in "${pt[@]}"
-do
-python pred.py --save paperzjcnn${j} --pt ${j} --end 100000
-python pred.py --save paperzqcnn${j} --pt ${j} --end 100000
-python pred.py --save paperqqcnn${j} --pt ${j} --end 100000
-done
+#declare -a pt=("100" "200")
+#for j in "${pt[@]}"
+#do
+#python pred.py --save paperzjcnn${j} --pt ${j} --end 100000 --isz 0
+#python pred.py --save paperzqcnn${j} --pt ${j} --end 100000 --isz 1
+#python pred.py --save paperqqcnn${j} --pt ${j} --end 100000 --isz -1
+#done
+#python pred.py --save testrms --pt 1000 --end 10000 --isz 0
+
+#python pred.py --save pepzjada1000 --pt 1000 --end 100000 --isz 0 --gpu 0
+#python pred.py --save pepzjrnn500sgd --pt 500 --end 100000 --isz 0 --gpu 1
+#python pred.py --save pepzjrnn200sgd --pt 200 --end 100000 --isz 0 --gpu 1
+#python pred.py --save pepzjrnn100sgd --pt 100 --end 100000 --isz 0 --gpu 1
+#python pred.py --save pepzjcnn200 --pt 200 --end 100000 --isz 0 --gpu 1
+
+#declare -a etas=("0" "0.4" "0.8" "1.2" "1.6" "2.")
+#for eta in "${etas[@]}"
+#do
+#python etapred.py --save pepzjcnn100model --pt 100 --end 100000 --isz 0 --gpu 1 --eta ${eta} --etabin 0.2 &
+#python etapred.py --save pepzjcnn200model --pt 200 --end 100000 --isz 0 --gpu 2 --eta ${eta} --etabin 0.2 &
+#python etapred.py --save pepzjcnn500model --pt 500 --end 100000 --isz 0 --gpu 4 --eta ${eta} --etabin 0.2 &
+#python etapred.py --save pepzjcnn1000model --pt 1000 --end 100000 --isz 0 --gpu 3 --eta ${eta} --etabin 0.2
+#done
+#python getpred.py --save pepzjcnn100model --pt 100 --end 100000 --isz 0 --gpu 1 --eta 0 --etabin 2.4 &
+#python getpred.py --save pepzjcnn200model --pt 200 --end 100000 --isz 0 --gpu 2 --eta 0 --etabin 2.4 &
+#python getpred.py --save pepzjcnn500model --pt 500 --end 100000 --isz 0 --gpu 4 --eta 0 --etabin 2.4 &
+#python getpred.py --save pepzjcnn1000model --pt 1000 --end 100000 --isz 0 --gpu 3 --eta 0 --etabin 2.4
+python modelrun.py --pt 500 --save asuzjcnn500pt1 --isz 0 --end 100000 --epochs 30 --gpu 2 --eta 0 --etabin 1 --ptmin 0. --ptmax 0.95 &
+python modelrun.py --pt 500 --save asuzjcnn500pt2 --isz 0 --end 100000 --epochs 30 --gpu 3 --eta 0 --etabin 1 --ptmin 0.95 --ptmax 1.05 &
+python modelrun.py --pt 500 --save asuzjcnn500pt3 --isz 0 --end 100000 --epochs 30 --gpu 4 --eta 0 --etabin 1 --ptmin 1.05 --ptmax 2.0 &
+python modelrun.py --pt 1000 --save asuzjcnn1000pt1 --isz 0 --end 100000 --epochs 30 --gpu 4 --eta 0 --etabin 1 --ptmin 0. --ptmax 0.95 &
+python modelrun.py --pt 1000 --save asuzjcnn1000pt2 --isz 0 --end 100000 --epochs 30 --gpu 3 --eta 0 --etabin 1 --ptmin 0.95 --ptmax 1.05 
+python modelrun.py --pt 1000 --save asuzjcnn1000pt3 --isz 0 --end 100000 --epochs 30 --gpu 2 --eta 0 --etabin 1 --ptmin 1.05 --ptmax 2.0
+python getpred.py --save asuzjcnn500pt1 --pt 500 --end 100000 --isz 0 --gpu 2 &
+python getpred.py --save asuzjcnn500pt2 --pt 500 --end 100000 --isz 0 --gpu 3 &
+python getpred.py --save asuzjcnn500pt3 --pt 500 --end 100000 --isz 0 --gpu 4 &
+python getpred.py --save asuzjcnn1000pt1 --pt 1000 --end 100000 --isz 0 --gpu 4 &
+python getpred.py --save asuzjcnn1000pt2 --pt 1000 --end 100000 --isz 0 --gpu 3 &
+python getpred.py --save asuzjcnn1000pt3 --pt 1000 --end 100000 --isz 0 --gpu 2 
+#python gettree.py --save asuzjcnn500pt --pt 500 
+#python gettree.py --save asuzjcnn1000pt --pt 1000 
+
+
+#python pred.py --save pepqqcnn100model --pt 100 --end 100000 --isz -1 --gpu 0 &
+#python pred.py --save pepqqcnn200model --pt 200 --end 100000 --isz -1 --gpu 1 &
+#python pred.py --save pepqqcnn500model --pt 500 --end 100000 --isz -1 --gpu 2 &
+#python pred.py --save pepqqcnn1000model --pt 1000 --end 100000 --isz -1 --gpu 3
+#python vpred.py --save pepzjcnn100model --pt 100 --end 100000 --isz 0 --gpu 3 &
+#python vpred.py --save pepzjcnn200model --pt 200 --end 100000 --isz 0 --gpu 1 &
+#python vpred.py --save pepzjcnn500model --pt 500 --end 100000 --isz 0 --gpu 0 &
+#python vpred.py --save pepzjcnn1000model --pt 1000 --end 100000 --isz 0 --gpu 2
+#python vpred.py --save pepzjrnn1000sgd --pt 1000 --end 100000 --isz 0 --gpu 0 &
+#python vpred.py --save pepzjrnn500sgd --pt 500 --end 100000 --isz 0 --gpu 1 &
+#python vpred.py --save pepzjrnn100sgd --pt 100 --end 100000 --isz 0 --gpu 2 
+#python vpred.py --save pepzjrnn200sgd --pt 200 --end 100000 --isz 0 --gpu 3 
+
