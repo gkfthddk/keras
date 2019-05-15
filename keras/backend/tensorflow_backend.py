@@ -95,9 +95,11 @@ def clear_session():
     tf.reset_default_graph()
     reset_uids()
     _SESSION = None
-    phase = tf.placeholder_with_default(False,
-                                        shape=(),
-                                        name='keras_learning_phase')
+    with tf.name_scope(''):
+        phase = tf.placeholder_with_default(
+            False,
+            shape=(),
+            name='keras_learning_phase')
     _GRAPH_LEARNING_PHASES = {}
     _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = phase
 
@@ -130,9 +132,11 @@ def learning_phase():
     """
     graph = tf.get_default_graph()
     if graph not in _GRAPH_LEARNING_PHASES:
-        phase = tf.placeholder_with_default(False,
-                                            shape=(),
-                                            name='keras_learning_phase')
+        with tf.name_scope(''):
+            phase = tf.placeholder_with_default(
+                False,
+                shape=(),
+                name='keras_learning_phase')
         _GRAPH_LEARNING_PHASES[graph] = phase
     return _GRAPH_LEARNING_PHASES[graph]
 
@@ -182,6 +186,7 @@ def get_session():
             else:
                 num_thread = int(os.environ.get('OMP_NUM_THREADS'))
                 config = tf.ConfigProto(intra_op_parallelism_threads=num_thread,
+                                        inter_op_parallelism_threads=num_thread,
                                         allow_soft_placement=True)
             _SESSION = tf.Session(config=config)
         session = _SESSION
@@ -659,6 +664,7 @@ def dtype(x):
         >>> K.dtype(kvar)
         'float32_ref'
     ```
+    {{np_implementation}}
     """
     return x.dtype.base_dtype.name
 
@@ -680,6 +686,7 @@ def eval(x):
         array([[ 1.,  2.],
                [ 3.,  4.]], dtype=float32)
     ```
+    {{np_implementation}}
     """
     return to_dense(x).eval(session=get_session())
 
@@ -706,6 +713,7 @@ def zeros(shape, dtype=None, name=None):
                [ 0.,  0.,  0.,  0.],
                [ 0.,  0.,  0.,  0.]], dtype=float32)
     ```
+    {{np_implementation}}
     """
     if dtype is None:
         dtype = floatx()
@@ -738,6 +746,7 @@ def ones(shape, dtype=None, name=None):
                [ 1.,  1.,  1.,  1.],
                [ 1.,  1.,  1.,  1.]], dtype=float32)
     ```
+    {{np_implementation}}
     """
     if dtype is None:
         dtype = floatx()
@@ -752,7 +761,7 @@ def eye(size, dtype=None, name=None):
     """Instantiate an identity matrix and returns it.
 
     # Arguments
-        size: Integer, number of rows/columns.
+        size: Tuple, number of rows and columns. If Integer, number of rows.
         dtype: String, data type of returned Keras variable.
         name: String, name of returned Keras variable.
 
@@ -762,18 +771,24 @@ def eye(size, dtype=None, name=None):
     # Example
     ```python
         >>> from keras import backend as K
-        >>> kvar = K.eye(3)
-        >>> K.eval(kvar)
+        >>> K.eval(K.eye(3))
         array([[ 1.,  0.,  0.],
                [ 0.,  1.,  0.],
                [ 0.,  0.,  1.]], dtype=float32)
+        >>> K.eval(K.eye((2, 3)))
+        array([[1., 0., 0.],
+               [0., 1., 0.]], dtype=float32)
     ```
-
+    {{np_implementation}}
     """
     if dtype is None:
         dtype = floatx()
     tf_dtype = tf.as_dtype(dtype)
-    return variable(tf.eye(size, dtype=tf_dtype), dtype, name)
+    if isinstance(size, (list, tuple)):
+        n, m = size
+    else:
+        n, m = size, size
+    return variable(tf.eye(n, m, dtype=tf_dtype), dtype, name)
 
 
 def zeros_like(x, dtype=None, name=None):
@@ -797,7 +812,10 @@ def zeros_like(x, dtype=None, name=None):
         array([[ 0.,  0.,  0.],
                [ 0.,  0.,  0.]], dtype=float32)
     ```
+    {{np_implementation}}
     """
+    if dtype is None:
+        dtype = floatx()
     return tf.zeros_like(x, dtype=dtype, name=name)
 
 
@@ -822,7 +840,10 @@ def ones_like(x, dtype=None, name=None):
         array([[ 1.,  1.,  1.],
                [ 1.,  1.,  1.]], dtype=float32)
     ```
+    {{np_implementation}}
     """
+    if dtype is None:
+        dtype = floatx()
     return tf.ones_like(x, dtype=dtype, name=name)
 
 
@@ -864,6 +885,7 @@ def random_uniform_variable(shape, low, high, dtype=None,
         array([[ 0.10940075,  0.10047495,  0.476143  ],
                [ 0.66137183,  0.00869417,  0.89220798]], dtype=float32)
     ```
+    {{np_implementation}}
     """
     if dtype is None:
         dtype = floatx()
@@ -901,6 +923,7 @@ def random_normal_variable(shape, mean, scale, dtype=None,
         array([[ 1.19591331,  0.68685907, -0.63814116],
                [ 0.92629528,  0.28055015,  1.70484698]], dtype=float32)
     ```
+    {{np_implementation}}
     """
     if dtype is None:
         dtype = floatx()
@@ -932,6 +955,7 @@ def count_params(x):
         array([[ 0.,  0.,  0.],
                [ 0.,  0.,  0.]], dtype=float32)
     ```
+    {{np_implementation}}
     """
     return np.prod(int_shape(x))
 
@@ -1070,6 +1094,7 @@ def dot(x, y):
         >>> K.int_shape(xy)
         (2, 4, 5)
     ```
+    {{np_implementation}}
     """
     if ndim(x) is not None and (ndim(x) > 2 or ndim(y) > 2):
         x_shape = []
@@ -1334,6 +1359,7 @@ def transpose(x):
         <tf.Tensor 'transpose_4:0' shape=(3, 2) dtype=float32>
 
     ```
+    {{np_implementation}}
     """
     return tf.transpose(x)
 
@@ -1449,6 +1475,7 @@ def cumsum(x, axis=0):
 
     # Returns
         A tensor of the cumulative sum of values of `x` along `axis`.
+    {{np_implementation}}
     """
     return tf.cumsum(x, axis=axis)
 
@@ -1462,6 +1489,7 @@ def cumprod(x, axis=0):
 
     # Returns
         A tensor of the cumulative product of values of `x` along `axis`.
+    {{np_implementation}}
     """
     return tf.cumprod(x, axis=axis)
 
@@ -1481,6 +1509,7 @@ def var(x, axis=None, keepdims=False):
 
     # Returns
         A tensor with the variance of elements of `x`.
+    {{np_implementation}}
     """
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
@@ -1506,6 +1535,7 @@ def std(x, axis=None, keepdims=False):
 
     # Returns
         A tensor with the standard deviation of elements of `x`.
+    {{np_implementation}}
     """
     return tf.sqrt(var(x, axis=axis, keepdims=keepdims))
 
@@ -1525,6 +1555,7 @@ def mean(x, axis=None, keepdims=False):
 
     # Returns
         A tensor with the mean of elements of `x`.
+    {{np_implementation}}
     """
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
@@ -1543,6 +1574,7 @@ def any(x, axis=None, keepdims=False):
 
     # Returns
         A uint8 tensor (0s and 1s).
+    {{np_implementation}}
     """
     x = tf.cast(x, tf.bool)
     return tf.reduce_any(x, axis, keepdims)
@@ -1560,6 +1592,7 @@ def all(x, axis=None, keepdims=False):
 
     # Returns
         A uint8 tensor (0s and 1s).
+    {{np_implementation}}
     """
     x = tf.cast(x, tf.bool)
     return tf.reduce_all(x, axis, keepdims)
@@ -1574,6 +1607,7 @@ def argmax(x, axis=-1):
 
     # Returns
         A tensor.
+    {{np_implementation}}
     """
     return tf.argmax(x, axis)
 
@@ -1587,6 +1621,7 @@ def argmin(x, axis=-1):
 
     # Returns
         A tensor.
+    {{np_implementation}}
     """
     return tf.argmin(x, axis)
 
@@ -1623,6 +1658,7 @@ def sqrt(x):
 
     # Returns
         A tensor.
+    {{np_implementation}}
     """
     zero = _to_tensor(0., x.dtype.base_dtype)
     inf = _to_tensor(np.inf, x.dtype.base_dtype)
@@ -1673,6 +1709,7 @@ def logsumexp(x, axis=None, keepdims=False):
 
     # Returns
         The reduced tensor.
+    {{np_implementation}}
     """
     return tf.reduce_logsumexp(x, axis, keepdims)
 
@@ -1712,6 +1749,7 @@ def pow(x, a):
 
     # Returns
         A tensor.
+    {{np_implementation}}
     """
     return tf.pow(x, a)
 
@@ -1726,6 +1764,7 @@ def clip(x, min_value, max_value):
 
     # Returns
         A tensor.
+    {{np_implementation}}
     """
     if (isinstance(min_value, (int, float)) and
             isinstance(max_value, (int, float))):
@@ -2356,9 +2395,31 @@ def tile(x, n):
 
     # Returns
         A tiled tensor.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> kvar = K.variable(np.random.random((2, 3)))
+        >>> kvar_tile = K.tile(K.eye(2), (2, 3))
+        >>> K.eval(kvar_tile)
+        array([[1., 0., 1., 0., 1., 0.],
+               [0., 1., 0., 1., 0., 1.],
+               [1., 0., 1., 0., 1., 0.],
+               [0., 1., 0., 1., 0., 1.]], dtype=float32)
+    ```
+    {{np_implementation}}
     """
     if isinstance(n, int):
-        n = [n]
+        n = (n,)
+    elif isinstance(n, list):
+        n = tuple(n)
+
+    shape = int_shape(x)
+    if len(n) < len(shape):  # Padding the axis
+        n = tuple([1 for _ in range(len(shape) - len(n))]) + n
+    elif len(n) != len(shape):
+        raise NotImplementedError
+
     return tf.tile(x, n)
 
 
@@ -2567,8 +2628,17 @@ def slice(x, start, size):
         new_x = x[start[0]: start[0] + size[0], ..., start[-1]: start[-1] + size[-1]]
         ```
 
+    # Raises
+        ValueError: if the dimension and the size of indices mismatches.
+
     {{np_implementation}}
     """
+    x_shape = int_shape(x)
+    if (x_shape is not None) and (x_shape[0] is not None):
+        len_start = int_shape(start)[0] if is_tensor(start) else len(start)
+        len_size = int_shape(size)[0] if is_tensor(size) else len(size)
+        if not (len(int_shape(x)) == len_start == len_size):
+            raise ValueError('The dimension and the size of indices should match.')
     return tf.slice(x, start, size)
 
 
@@ -3041,8 +3111,7 @@ def rnn(step_function, inputs, initial_states,
     if constants is None:
         constants = []
 
-    global uses_learning_phase
-    uses_learning_phase = False
+    uses_learning_phase = [False]
 
     if unroll:
         if not inputs.shape[0]:
@@ -3064,7 +3133,7 @@ def rnn(step_function, inputs, initial_states,
             for inp, mask_t in zip(input_list, mask_list):
                 output, new_states = step_function(inp, states + constants)
                 if getattr(output, '_uses_learning_phase', False):
-                    uses_learning_phase = True
+                    uses_learning_phase[0] = True
 
                 if not successive_outputs:
                     prev_output = zeros_like(output)
@@ -3090,7 +3159,7 @@ def rnn(step_function, inputs, initial_states,
             for inp in input_list:
                 output, states = step_function(inp, states + constants)
                 if getattr(output, '_uses_learning_phase', False):
-                    uses_learning_phase = True
+                    uses_learning_phase[0] = True
                 successive_outputs.append(output)
                 successive_states.append(states)
             last_output = successive_outputs[-1]
@@ -3150,8 +3219,7 @@ def rnn(step_function, inputs, initial_states,
                                                    tuple(states) +
                                                    tuple(constants))
                 if getattr(output, '_uses_learning_phase', False):
-                    global uses_learning_phase
-                    uses_learning_phase = True
+                    uses_learning_phase[0] = True
                 for state, new_state in zip(states, new_states):
                     new_state.set_shape(state.shape)
 
@@ -3187,8 +3255,7 @@ def rnn(step_function, inputs, initial_states,
                                                    tuple(states) +
                                                    tuple(constants))
                 if getattr(output, '_uses_learning_phase', False):
-                    global uses_learning_phase
-                    uses_learning_phase = True
+                    uses_learning_phase[0] = True
                 for state, new_state in zip(states, new_states):
                     new_state.set_shape(state.shape)
                 output_ta_t = output_ta_t.write(time, output)
@@ -3207,7 +3274,7 @@ def rnn(step_function, inputs, initial_states,
 
     axes = [1, 0] + list(range(2, len(outputs.shape)))
     outputs = tf.transpose(outputs, axes)
-    last_output._uses_learning_phase = uses_learning_phase
+    last_output._uses_learning_phase = uses_learning_phase[0]
     return last_output, outputs, new_states
 
 
@@ -3227,6 +3294,8 @@ def switch(condition, then_expression, else_expression):
 
     # Raises
         ValueError: If rank of `condition` is greater than rank of expressions.
+
+    {{np_implementation}}
     """
     if condition.dtype != tf.bool:
         condition = tf.cast(condition, 'bool')
@@ -3642,6 +3711,7 @@ def dropout(x, level, noise_shape=None, seed=None):
 
     # Returns
         A tensor.
+    {{np_implementation}}
     """
     retain_prob = 1. - level
     if seed is None:
@@ -4261,6 +4331,7 @@ def bias_add(x, bias, data_format=None):
                     2. invalid bias shape.
                        the bias should be either a vector or
                        a tensor with ndim(x) - 1 dimension
+    {{np_implementation}}
     """
     data_format = normalize_data_format(data_format)
     bias_shape = int_shape(bias)
@@ -4439,8 +4510,8 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
 
     vals_sparse = tf.gather_nd(labels, indices)
 
-    indices = tf.to_int64(indices)
-    label_shape = tf.to_int64(label_shape)
+    indices = tf.cast(indices, tf.int64)
+    label_shape = tf.cast(label_shape, tf.int64)
     return tf.SparseTensor(indices, vals_sparse, label_shape)
 
 
@@ -4461,19 +4532,18 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
         Tensor with shape (samples,1) containing the
             CTC loss of each element.
     """
-    label_length = tf.to_int32(tf.squeeze(label_length, axis=-1))
-    input_length = tf.to_int32(tf.squeeze(input_length, axis=-1))
-    sparse_labels = tf.to_int32(ctc_label_dense_to_sparse(y_true, label_length))
-
+    label_length = tf.cast(tf.squeeze(label_length, axis=-1), tf.int32)
+    input_length = tf.cast(tf.squeeze(input_length, axis=-1), tf.int32)
+    sparse_labels = tf.cast(
+        ctc_label_dense_to_sparse(y_true, label_length), tf.int32)
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
-
     return tf.expand_dims(ctc.ctc_loss(inputs=y_pred,
                                        labels=sparse_labels,
                                        sequence_length=input_length), 1)
 
 
 def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
-               top_paths=1):
+               top_paths=1, merge_repeated=False):
     """Decodes the output of a softmax.
 
     Can use either greedy search (also known as best path)
@@ -4484,25 +4554,27 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
             containing the prediction, or output of the softmax.
         input_length: tensor `(samples, )` containing the sequence length for
             each batch item in `y_pred`.
-        greedy: perform much faster best-path search if `true`.
+        greedy: perform much faster best-path search if `True`.
             This does not use a dictionary.
-        beam_width: if `greedy` is `false`: a beam search decoder will be used
+        beam_width: if `greedy` is `False`: a beam search decoder will be used
             with a beam of this width.
-        top_paths: if `greedy` is `false`,
+        top_paths: if `greedy` is `False`,
             how many of the most probable paths will be returned.
+        merge_repeated: if `greedy` is `False`,
+            merge repeated classes in the output beams.
 
     # Returns
         Tuple:
-            List: if `greedy` is `true`, returns a list of one element that
+            List: if `greedy` is `True`, returns a list of one element that
                 contains the decoded sequence.
-                If `false`, returns the `top_paths` most probable
+                If `False`, returns the `top_paths` most probable
                 decoded sequences.
                 Important: blank labels are returned as `-1`.
             Tensor `(top_paths, )` that contains
                 the log probability of each decoded sequence.
     """
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
-    input_length = tf.to_int32(input_length)
+    input_length = tf.cast(input_length, tf.int32)
 
     if greedy:
         (decoded, log_prob) = ctc.ctc_greedy_decoder(
@@ -4512,14 +4584,11 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
         (decoded, log_prob) = ctc.ctc_beam_search_decoder(
             inputs=y_pred,
             sequence_length=input_length, beam_width=beam_width,
-            top_paths=top_paths)
+            top_paths=top_paths, merge_repeated=merge_repeated)
 
     decoded_dense = []
     for st in decoded:
-        dense_tensor = tf.sparse_to_dense(st.indices,
-                                          st.dense_shape,
-                                          st.values,
-                                          default_value=-1)
+        dense_tensor = tf.sparse.to_dense(st, default_value=-1)
         decoded_dense.append(dense_tensor)
     return (decoded_dense, log_prob)
 

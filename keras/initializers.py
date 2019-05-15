@@ -124,7 +124,7 @@ class TruncatedNormal(Initializer):
 
     These values are similar to values from a `RandomNormal`
     except that values more than two standard deviations from the mean
-    are discarded and re-drawn. This is the recommended initializer for
+    are discarded and redrawn. This is the recommended initializer for
     neural network weights and filters.
 
     # Arguments
@@ -248,9 +248,10 @@ class Orthogonal(Initializer):
             num_rows *= dim
         num_cols = shape[-1]
         flat_shape = (num_rows, num_cols)
+        rng = np.random
         if self.seed is not None:
-            np.random.seed(self.seed)
-        a = np.random.normal(0.0, 1.0, flat_shape)
+            rng = np.random.RandomState(self.seed)
+        a = rng.normal(0.0, 1.0, flat_shape)
         u, _, v = np.linalg.svd(a, full_matrices=False)
         # Pick the one with the correct shape.
         q = u if u.shape == flat_shape else v
@@ -268,8 +269,8 @@ class Identity(Initializer):
     """Initializer that generates the identity matrix.
 
     Only use for 2D matrices.
-    If the long side of the matrix is a multiple of the short side,
-    multiple identity matrices are concatenated along the long side.
+    If the desired matrix is not square, it pads with zeros on the
+    additional rows/columns
 
     # Arguments
         gain: Multiplicative factor to apply to the identity matrix.
@@ -283,17 +284,7 @@ class Identity(Initializer):
             raise ValueError(
                 'Identity matrix initializer can only be used for 2D matrices.')
 
-        if max(shape) % min(shape) != 0:
-            raise ValueError('Long side should be multiple of short side.')
-
-        if shape[0] == shape[1]:
-            return self.gain * np.identity(shape[0])
-        elif shape[0] > shape[1]:
-            return self.gain * np.concatenate(
-                [np.identity(shape[1])] * (shape[0] // shape[1]), axis=0)
-        else:
-            return self.gain * np.concatenate(
-                [np.identity(shape[0])] * (shape[1] // shape[0]), axis=1)
+        return self.gain * K.eye((shape[0], shape[1]), dtype=dtype)
 
     def get_config(self):
         return {

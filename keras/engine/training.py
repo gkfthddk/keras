@@ -13,11 +13,14 @@ from .base_layer import Layer
 from .training_utils import collect_metrics
 from .training_utils import check_array_length_consistency
 from .training_utils import check_loss_and_target_compatibility
+from .training_utils import check_generator_arguments
 from .training_utils import standardize_class_weights
 from .training_utils import standardize_input_data
 from .training_utils import standardize_sample_weights
 from .training_utils import standardize_weights
 from .training_utils import weighted_masked_objective
+from .training_utils import get_static_batch_size
+from .training_utils import is_generator_or_sequence
 from . import training_arrays
 from . import training_generator
 from .. import backend as K
@@ -66,7 +69,7 @@ class Model(Network):
                 will then be the *weighted sum* of all individual losses,
                 weighted by the `loss_weights` coefficients.
                 If a list, it is expected to have a 1:1 mapping
-                to the model's outputs. If a tensor, it is expected to map
+                to the model's outputs. If a dict, it is expected to map
                 output names (strings) to scalar coefficients.
             sample_weight_mode: If you need to do timestep-wise
                 sample weighting (2D weights), set this to `"temporal"`.
@@ -564,20 +567,23 @@ class Model(Network):
         time what their inputs look like.
 
         # Arguments
-          inputs: Single array, or list of arrays. The arrays could be placeholders,
-            Numpy arrays, or data tensors.
-            - if placeholders: the model is built on top of these placeholders,
-              and we expect Numpy data to be fed for them when calling `fit`/etc.
-            - if Numpy data: we create placeholders matching the shape of the Numpy
-              arrays. We expect Numpy data to be fed for these placeholders
-              when calling `fit`/etc.
-            - if data tensors: the model is built on top of these tensors.
-              We do not expect any Numpy data to be provided when calling `fit`/etc.
-          outputs: Optional output tensors (if already computed by running
-            the model).
-          training: Boolean or None. Only relevant in symbolic mode. Specifies
-            whether to build the model's graph in inference mode (False), training
-            mode (True), or using the Keras learning phase (None).
+            inputs: Single array, or list of arrays. The arrays could be
+                placeholders, Numpy arrays, or data tensors.
+                - if placeholders: the model is built on top of these
+                  placeholders, and we expect Numpy data to be fed for them
+                  when calling `fit`/etc.
+                - if Numpy data: we create placeholders matching the shape of
+                  the Numpy arrays. We expect Numpy data to be fed for these
+                  placeholders when calling `fit`/etc.
+                - if data tensors: the model is built on top of these tensors.
+                  We do not expect any Numpy data to be provided when calling
+                  `fit`/etc.
+            outputs: Optional output tensors (if already computed by running
+                the model).
+            training: Boolean or None. Only relevant in symbolic mode.
+                Specifies whether to build the model's graph in inference
+                mode (False), training mode (True), or using the Keras
+                learning phase (None).
         """
         if self.__class__.__name__ == 'Sequential':
             # Note: we can't test whether the model
@@ -823,6 +829,64 @@ class Model(Network):
                                  str(x[0].shape[0]) + ' samples')
         return x, y, sample_weights
 
+    def _get_callback_model(self):
+        """Returns the Callback Model for this Model."""
+        if hasattr(self, 'callback_model') and self.callback_model:
+            return self.callback_model
+        return self
+
+    def _validate_or_infer_batch_size(self, batch_size, steps, x):
+        """Validates that the `batch_size` provided is consistent with InputLayer.
+
+        It's possible that the user specified a static batch size in their
+        InputLayer. If so, this method checks the provided `batch_size` and `x`
+        arguments are consistent with this static batch size. Also, if
+        `batch_size` is `None`, this method will attempt to infer the batch size
+        from the static batch size of the InputLayer. Lastly, ValueError will be
+        raised if `x` is a generator or `Sequence` instance and `batch_size` is
+        specified as we expect users to provide batched datasets.
+
+        # Arguments
+            batch_size: The batch_size provided as an argument to
+                fit/evaluate/predict.
+            steps: The steps provided as an argument to fit/evaluate/predict.
+            x: The data passed as `x` to fit/evaluate/predict.
+
+        # Returns
+            The validated batch_size, auto-inferred from the first layer if
+            not provided.
+
+        # Raises
+            ValueError: if a batch size is specified and a generator/Sequence
+                is passed, or if the specified batch size does not match the
+                exepected size defined in the Input Layer.
+        """
+        if batch_size is not None and is_generator_or_sequence(x):
+            raise ValueError('The `batch_size` argument must not be specified when'
+                             ' using a generator or Sequence as an input.')
+
+        layers = super(Model, self).layers  # Avoids the override in Sequential.
+        if layers:
+            first_layer = layers[0]
+            static_batch_size = get_static_batch_size(first_layer)
+            if static_batch_size is not None:
+
+                # Check `batch_size` argument is consistent with InputLayer.
+                if batch_size is not None and batch_size != static_batch_size:
+                    raise ValueError('The `batch_size` argument value {} is '
+                                     'incompatible with the specified batch '
+                                     'size of your Input Layer: {}'
+                                     .format(batch_size, static_batch_size))
+
+                # Set inferred batch size from the InputLayer.
+                if steps is None:
+                    batch_size = static_batch_size
+
+        if batch_size is None and steps is None:
+            # Backwards compatibility
+            batch_size = 32
+        return batch_size
+
     def fit(self,
             x=None,
             y=None,
@@ -838,26 +902,39 @@ class Model(Network):
             initial_epoch=0,
             steps_per_epoch=None,
             validation_steps=None,
+            validation_freq=1,
+            max_queue_size=10,
+            workers=1,
+            use_multiprocessing=False,
             **kwargs):
-        """Trains the model for a given number of epochs (iterations on a dataset).
+        """Trains the model for a fixed number of epochs (iterations on a dataset).
 
         # Arguments
-            x: Numpy array of training data (if the model has a single input),
-                or list of Numpy arrays (if the model has multiple inputs).
-                If input layers in the model are named, you can also pass a
-                dictionary mapping input names to Numpy arrays.
-                `x` can be `None` (default) if feeding from
-                framework-native tensors (e.g. TensorFlow data tensors).
-            y: Numpy array of target (label) data
-                (if the model has a single output),
-                or list of Numpy arrays (if the model has multiple outputs).
+            x: Input data. It could be:
+                - A Numpy array (or array-like), or a list of arrays
+                  (in case the model has multiple inputs).
+                - A dict mapping input names to the corresponding
+                  array/tensors, if the model has named inputs.
+                - A generator or `keras.utils.Sequence` returning
+                  `(inputs, targets)` or `(inputs, targets, sample weights)`.
+                - None (default) if feeding from framework-native
+                  tensors (e.g. TensorFlow data tensors).
+            y: Target data. Like the input data `x`,
+                it could be either Numpy array(s), framework-native tensor(s),
+                list of Numpy arrays (if the model has multiple outputs) or
+                None (default) if feeding from framework-native tensors
+                (e.g. TensorFlow data tensors).
                 If output layers in the model are named, you can also pass a
                 dictionary mapping output names to Numpy arrays.
-                `y` can be `None` (default) if feeding from
-                framework-native tensors (e.g. TensorFlow data tensors).
+                If `x` is a generator, or `keras.utils.Sequence` instance,
+                `y` should not be specified (since targets will be obtained
+                from `x`).
             batch_size: Integer or `None`.
                 Number of samples per gradient update.
                 If unspecified, `batch_size` will default to 32.
+                Do not specify the `batch_size` if your data is in the
+                form of symbolic tensors, generators, or `Sequence` instances
+                (since they generate batches).
             epochs: Integer. Number of epochs to train the model.
                 An epoch is an iteration over the entire `x` and `y`
                 data provided.
@@ -869,7 +946,8 @@ class Model(Network):
             verbose: Integer. 0, 1, or 2. Verbosity mode.
                 0 = silent, 1 = progress bar, 2 = one line per epoch.
             callbacks: List of `keras.callbacks.Callback` instances.
-                List of callbacks to apply during training.
+                List of callbacks to apply during training and validation
+                (if ).
                 See [callbacks](/callbacks).
             validation_split: Float between 0 and 1.
                 Fraction of the training data to be used as validation data.
@@ -879,11 +957,18 @@ class Model(Network):
                 on this data at the end of each epoch.
                 The validation data is selected from the last samples
                 in the `x` and `y` data provided, before shuffling.
-            validation_data: tuple `(x_val, y_val)` or tuple
-                `(x_val, y_val, val_sample_weights)` on which to evaluate
+                This argument is not supported when `x` is a generator or
+                `Sequence` instance.
+            validation_data: Data on which to evaluate
                 the loss and any model metrics at the end of each epoch.
                 The model will not be trained on this data.
                 `validation_data` will override `validation_split`.
+                `validation_data` could be:
+                    - tuple `(x_val, y_val)` of Numpy arrays or tensors
+                    - tuple `(x_val, y_val, val_sample_weights)` of Numpy arrays
+                    - dataset or a dataset iterator
+                For the first two cases, `batch_size` must be provided.
+                For the last case, `validation_steps` must be provided.
             shuffle: Boolean (whether to shuffle the training data
                 before each epoch) or str (for 'batch').
                 'batch' is a special option for dealing with the
@@ -905,7 +990,9 @@ class Model(Network):
                 `(samples, sequence_length)`,
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
-                `sample_weight_mode="temporal"` in `compile()`.
+                `sample_weight_mode="temporal"` in `compile()`. This argument
+                is not supported when `x` generator, or `Sequence` instance,
+                instead provide the sample_weights as the third element of `x`.
             initial_epoch: Integer.
                 Epoch at which to start training
                 (useful for resuming a previous training run).
@@ -919,6 +1006,32 @@ class Model(Network):
             validation_steps: Only relevant if `steps_per_epoch`
                 is specified. Total number of steps (batches of samples)
                 to validate before stopping.
+            validation_steps: Only relevant if `validation_data` is provided
+                and is a generator. Total number of steps (batches of samples)
+                to draw before stopping when performing validation at the end
+                of every epoch.
+            validation_freq: Only relevant if validation data is provided. Integer
+                or list/tuple/set. If an integer, specifies how many training
+                epochs to run before a new validation run is performed, e.g.
+                `validation_freq=2` runs validation every 2 epochs. If a list,
+                tuple, or set, specifies the epochs on which to run validation,
+                e.g. `validation_freq=[1, 2, 10]` runs validation at the end
+                of the 1st, 2nd, and 10th epochs.
+            max_queue_size: Integer. Used for generator or `keras.utils.Sequence`
+                input only. Maximum size for the generator queue.
+                If unspecified, `max_queue_size` will default to 10.
+            workers: Integer. Used for generator or `keras.utils.Sequence` input
+                only. Maximum number of processes to spin up
+                when using process-based threading. If unspecified, `workers`
+                will default to 1. If 0, will execute the generator on the main
+                thread.
+            use_multiprocessing: Boolean. Used for generator or
+                `keras.utils.Sequence` input only. If `True`, use process-based
+                threading. If unspecified, `use_multiprocessing` will default to
+                `False`. Note that because this implementation relies on
+                multiprocessing, you should not pass non-picklable arguments to
+                the generator as they can't be passed easily to children processes.
+            **kwargs: Used for backwards compatibility.
 
         # Returns
             A `History` object. Its `History.history` attribute is
@@ -931,9 +1044,6 @@ class Model(Network):
             ValueError: In case of mismatch between the provided input data
                 and what the model expects.
         """
-        # Backwards compatibility
-        if batch_size is None and steps_per_epoch is None:
-            batch_size = 32
         # Legacy support
         if 'nb_epoch' in kwargs:
             warnings.warn('The `nb_epoch` argument in `fit` '
@@ -941,16 +1051,43 @@ class Model(Network):
             epochs = kwargs.pop('nb_epoch')
         if kwargs:
             raise TypeError('Unrecognized keyword arguments: ' + str(kwargs))
+
         if x is None and y is None and steps_per_epoch is None:
             raise ValueError('If fitting from data tensors, '
                              'you should specify the `steps_per_epoch` '
                              'argument.')
-        # Validate user data.
+
+        batch_size = self._validate_or_infer_batch_size(
+            batch_size, steps_per_epoch, x)
+
+        # Case 1: generator-like. Input is Python generator,
+        # or Sequence object, or iterator.
+        if is_generator_or_sequence(x):
+            check_generator_arguments(
+                y, sample_weight, validation_split=validation_split)
+            return self.fit_generator(
+                x,
+                steps_per_epoch=steps_per_epoch,
+                epochs=epochs,
+                verbose=verbose,
+                callbacks=callbacks,
+                validation_data=validation_data,
+                validation_steps=validation_steps,
+                validation_freq=validation_freq,
+                class_weight=class_weight,
+                max_queue_size=max_queue_size,
+                workers=workers,
+                use_multiprocessing=use_multiprocessing,
+                shuffle=shuffle,
+                initial_epoch=initial_epoch)
+
+        # Case 2: Symbolic tensors or Numpy array-like.
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
             class_weight=class_weight,
             batch_size=batch_size)
+
         # Prepare validation data.
         do_validation = False
         if validation_data:
@@ -1037,34 +1174,50 @@ class Model(Network):
                                         callback_metrics=callback_metrics,
                                         initial_epoch=initial_epoch,
                                         steps_per_epoch=steps_per_epoch,
-                                        validation_steps=validation_steps)
+                                        validation_steps=validation_steps,
+                                        validation_freq=validation_freq)
 
-    def evaluate(self, x=None, y=None,
+    def evaluate(self,
+                 x=None,
+                 y=None,
                  batch_size=None,
                  verbose=1,
                  sample_weight=None,
-                 steps=None):
+                 steps=None,
+                 callbacks=None,
+                 max_queue_size=10,
+                 workers=1,
+                 use_multiprocessing=False):
         """Returns the loss value & metrics values for the model in test mode.
 
         Computation is done in batches.
 
         # Arguments
-            x: Numpy array of test data (if the model has a single input),
-                or list of Numpy arrays (if the model has multiple inputs).
-                If input layers in the model are named, you can also pass a
-                dictionary mapping input names to Numpy arrays.
-                `x` can be `None` (default) if feeding from
-                framework-native tensors (e.g. TensorFlow data tensors).
-            y: Numpy array of target (label) data
-                (if the model has a single output),
-                or list of Numpy arrays (if the model has multiple outputs).
+            x: Input data. It could be:
+                - A Numpy array (or array-like), or a list of arrays
+                  (in case the model has multiple inputs).
+                - A dict mapping input names to the corresponding
+                  array/tensors, if the model has named inputs.
+                - A generator or `keras.utils.Sequence` returning
+                  `(inputs, targets)` or `(inputs, targets, sample weights)`.
+                - None (default) if feeding from framework-native
+                  tensors (e.g. TensorFlow data tensors).
+            y: Target data. Like the input data `x`,
+                it could be either Numpy array(s), framework-native tensor(s),
+                list of Numpy arrays (if the model has multiple outputs) or
+                None (default) if feeding from framework-native tensors
+                (e.g. TensorFlow data tensors).
                 If output layers in the model are named, you can also pass a
                 dictionary mapping output names to Numpy arrays.
-                `y` can be `None` (default) if feeding from
-                framework-native tensors (e.g. TensorFlow data tensors).
+                If `x` is a generator, or `keras.utils.Sequence` instance,
+                `y` should not be specified (since targets will be obtained
+                from `x`).
             batch_size: Integer or `None`.
-                Number of samples per evaluation step.
+                Number of samples per gradient update.
                 If unspecified, `batch_size` will default to 32.
+                Do not specify the `batch_size` is your data is in the
+                form of symbolic tensors, generators, or
+                `keras.utils.Sequence` instances (since they generate batches).
             verbose: 0 or 1. Verbosity mode.
                 0 = silent, 1 = progress bar.
             sample_weight: Optional Numpy array of weights for
@@ -1082,6 +1235,25 @@ class Model(Network):
                 Total number of steps (batches of samples)
                 before declaring the evaluation round finished.
                 Ignored with the default value of `None`.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during evaluation.
+                See [callbacks](/callbacks).
+            max_queue_size: Integer. Used for generator or `keras.utils.Sequence`
+                input only. Maximum size for the generator queue.
+                If unspecified, `max_queue_size` will default to 10.
+            workers: Integer. Used for generator or `keras.utils.Sequence` input
+                only. Maximum number of processes to spin up when using
+                process-based threading. If unspecified, `workers` will default
+                to 1. If 0, will execute the generator on the main thread.
+            use_multiprocessing: Boolean. Used for generator or
+                `keras.utils.Sequence` input only. If `True`, use process-based
+                threading. If unspecified, `use_multiprocessing` will default to
+                `False`. Note that because this implementation relies on
+                multiprocessing, you should not pass non-picklable arguments to
+                the generator as they can't be passed easily to children processes.
+
+        # Raises
+            ValueError: in case of invalid arguments.
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1089,9 +1261,22 @@ class Model(Network):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        # Backwards compatibility.
-        if batch_size is None and steps is None:
-            batch_size = 32
+
+        batch_size = self._validate_or_infer_batch_size(batch_size, steps, x)
+
+        # Case 1: generator-like. Input is Python generator, or Sequence object.
+        if is_generator_or_sequence(x):
+            check_generator_arguments(y, sample_weight)
+            return self.evaluate_generator(
+                x,
+                steps=steps,
+                verbose=verbose,
+                callbacks=callbacks,
+                max_queue_size=max_queue_size,
+                workers=workers,
+                use_multiprocessing=use_multiprocessing)
+
+        # Case 2: Symbolic tensors or Numpy array-like.
         if x is None and y is None and steps is None:
             raise ValueError('If evaluating from data tensors, '
                              'you should specify the `steps` '
@@ -1111,24 +1296,57 @@ class Model(Network):
         return training_arrays.test_loop(self, f, ins,
                                          batch_size=batch_size,
                                          verbose=verbose,
-                                         steps=steps)
+                                         steps=steps,
+                                         callbacks=callbacks)
 
     def predict(self, x,
                 batch_size=None,
                 verbose=0,
-                steps=None):
+                steps=None,
+                callbacks=None,
+                max_queue_size=10,
+                workers=1,
+                use_multiprocessing=False):
         """Generates output predictions for the input samples.
 
         Computation is done in batches.
 
         # Arguments
-            x: The input data, as a Numpy array
-                (or list of Numpy arrays if the model has multiple inputs).
-            batch_size: Integer. If unspecified, it will default to 32.
+            x: Input data. It could be:
+                - A Numpy array (or array-like), or a list of arrays
+                  (in case the model has multiple inputs).
+                - A dict mapping input names to the corresponding
+                  array/tensors, if the model has named inputs.
+                - A generator or `keras.utils.Sequence` returning
+                  `(inputs, targets)` or `(inputs, targets, sample weights)`.
+                - None (default) if feeding from framework-native
+                  tensors (e.g. TensorFlow data tensors).
+            batch_size: Integer or `None`.
+                Number of samples per gradient update.
+                If unspecified, `batch_size` will default to 32.
+                Do not specify the `batch_size` is your data is in the
+                form of symbolic tensors, generators, or
+                `keras.utils.Sequence` instances (since they generate batches).
             verbose: Verbosity mode, 0 or 1.
             steps: Total number of steps (batches of samples)
                 before declaring the prediction round finished.
                 Ignored with the default value of `None`.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during prediction.
+                See [callbacks](/callbacks).
+            max_queue_size: Integer. Used for generator or `keras.utils.Sequence`
+                input only. Maximum size for the generator queue.
+                If unspecified, `max_queue_size` will default to 10.
+            workers: Integer. Used for generator or `keras.utils.Sequence` input
+                only. Maximum number of processes to spin up when using
+                process-based threading. If unspecified, `workers` will default
+                to 1. If 0, will execute the generator on the main thread.
+            use_multiprocessing: Boolean. Used for generator or
+                `keras.utils.Sequence` input only. If `True`, use process-based
+                threading. If unspecified, `use_multiprocessing` will default to
+                `False`. Note that because this implementation relies on
+                multiprocessing, you should not pass non-picklable arguments to
+                the generator as they can't be passed easily to children processes.
 
         # Returns
             Numpy array(s) of predictions.
@@ -1139,14 +1357,26 @@ class Model(Network):
                 or in case a stateful model receives a number of samples
                 that is not a multiple of the batch size.
         """
-        # Backwards compatibility.
-        if batch_size is None and steps is None:
-            batch_size = 32
+
+        batch_size = self._validate_or_infer_batch_size(batch_size, steps, x)
+
+        # Case 1: generator-like. Input is Python generator, or Sequence object.
+        if is_generator_or_sequence(x):
+            return self.predict_generator(
+                x,
+                steps=steps,
+                verbose=verbose,
+                callbacks=callbacks,
+                max_queue_size=max_queue_size,
+                workers=workers,
+                use_multiprocessing=use_multiprocessing)
+
         if x is None and steps is None:
             raise ValueError('If predicting from data tensors, '
                              'you should specify the `steps` '
                              'argument.')
-        # Validate user data.
+
+        # Case 2: Symbolic tensors or Numpy array-like.
         x, _, _ = self._standardize_user_data(x)
         if self.stateful:
             if x[0].shape[0] > batch_size and x[0].shape[0] % batch_size != 0:
@@ -1167,7 +1397,8 @@ class Model(Network):
         return training_arrays.predict_loop(self, f, ins,
                                             batch_size=batch_size,
                                             verbose=verbose,
-                                            steps=steps)
+                                            steps=steps,
+                                            callbacks=callbacks)
 
     def train_on_batch(self, x, y,
                        sample_weight=None,
@@ -1283,6 +1514,7 @@ class Model(Network):
                       callbacks=None,
                       validation_data=None,
                       validation_steps=None,
+                      validation_freq=1,
                       class_weight=None,
                       max_queue_size=10,
                       workers=1,
@@ -1320,8 +1552,7 @@ class Model(Network):
                 Total number of steps (batches of samples)
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
-                be equal to the number of samples of your dataset
-                divided by the batch size.
+                be equal to `ceil(num_samples / batch_size)`
                 Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
             epochs: Integer. Number of epochs to train the model.
@@ -1352,6 +1583,13 @@ class Model(Network):
                 validation dataset divided by the batch size.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(validation_data)` as a number of steps.
+            validation_freq: Only relevant if validation data is provided. Integer
+                or `collections.Container` instance (e.g. list, tuple, etc.). If an
+                integer, specifies how many training epochs to run before a new
+                validation run is performed, e.g. `validation_freq=2` runs
+                validation every 2 epochs. If a Container, specifies the epochs on
+                which to run validation, e.g. `validation_freq=[1, 2, 10]` runs
+                validation at the end of the 1st, 2nd, and 10th epochs.
             class_weight: Optional dictionary mapping class indices (integers)
                 to a weight (float) value, used for weighting the loss function
                 (during training only). This can be useful to tell the model to
@@ -1411,6 +1649,7 @@ class Model(Network):
             callbacks=callbacks,
             validation_data=validation_data,
             validation_steps=validation_steps,
+            validation_freq=validation_freq,
             class_weight=class_weight,
             max_queue_size=max_queue_size,
             workers=workers,
@@ -1421,6 +1660,7 @@ class Model(Network):
     @interfaces.legacy_generator_methods_support
     def evaluate_generator(self, generator,
                            steps=None,
+                           callbacks=None,
                            max_queue_size=10,
                            workers=1,
                            use_multiprocessing=False,
@@ -1440,6 +1680,9 @@ class Model(Network):
                 to yield from `generator` before stopping.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during training.
+                See [callbacks](/callbacks).
             max_queue_size: maximum size for the generator queue
             workers: Integer. Maximum number of processes to spin up
                 when using process based threading.
@@ -1467,6 +1710,7 @@ class Model(Network):
         return training_generator.evaluate_generator(
             self, generator,
             steps=steps,
+            callbacks=callbacks,
             max_queue_size=max_queue_size,
             workers=workers,
             use_multiprocessing=use_multiprocessing,
@@ -1475,6 +1719,7 @@ class Model(Network):
     @interfaces.legacy_generator_methods_support
     def predict_generator(self, generator,
                           steps=None,
+                          callbacks=None,
                           max_queue_size=10,
                           workers=1,
                           use_multiprocessing=False,
@@ -1493,6 +1738,9 @@ class Model(Network):
                 to yield from `generator` before stopping.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during training.
+                See [callbacks](/callbacks).
             max_queue_size: Maximum size for the generator queue.
             workers: Integer. Maximum number of processes to spin up
                 when using process based threading.
@@ -1517,6 +1765,7 @@ class Model(Network):
         return training_generator.predict_generator(
             self, generator,
             steps=steps,
+            callbacks=callbacks,
             max_queue_size=max_queue_size,
             workers=workers,
             use_multiprocessing=use_multiprocessing,

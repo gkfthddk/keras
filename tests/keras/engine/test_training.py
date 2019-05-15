@@ -350,6 +350,9 @@ def test_model_methods():
 
     # enable verbose for evaluate_generator
     out = model.evaluate_generator(gen_data(4), steps=3, verbose=1)
+    # pass generator directly so `is_generator_or_sequence`
+    # doesn't get confused.
+    out = model.evaluate(gen_data(4).it, steps=3, verbose=1)
 
     # empty batch
     with pytest.raises(ValueError):
@@ -359,6 +362,13 @@ def test_model_methods():
                 yield (np.asarray([]), np.asarray([]))
 
         out = model.evaluate_generator(gen_data(), steps=1)
+    with pytest.raises(ValueError):
+        @threadsafe_generator
+        def gen_data():
+            while True:
+                yield (np.asarray([]), np.asarray([]))
+
+        out = model.evaluate(gen_data().it, steps=1)
 
     # x is not a list of numpy arrays.
     with pytest.raises(ValueError):
@@ -479,6 +489,20 @@ def test_fit_generator():
     assert tracker_cb.trained_batches == list(range(3)) * 5
     assert len(val_seq.logs) <= 4 * 5
 
+    tracker_cb = TrackerCallback()
+    val_seq = RandomSequence(4)
+    out = model.fit(RandomSequence(3),
+                    steps_per_epoch=3,
+                    epochs=5,
+                    initial_epoch=0,
+                    validation_data=val_seq,
+                    validation_steps=3,
+                    max_queue_size=1,
+                    callbacks=[tracker_cb])
+    assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
+    assert tracker_cb.trained_batches == list(range(3)) * 5
+    assert len(val_seq.logs) <= 4 * 5
+
     # steps_per_epoch will be equal to len of sequence if it's unspecified
     tracker_cb = TrackerCallback()
     val_seq = RandomSequence(4)
@@ -488,6 +512,18 @@ def test_fit_generator():
                               validation_data=val_seq,
                               callbacks=[tracker_cb],
                               max_queue_size=1)
+    assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
+    assert tracker_cb.trained_batches == list(range(12)) * 5
+    assert 12 * 5 <= len(val_seq.logs) <= (12 * 5) + 2  # the queue may be full.
+
+    tracker_cb = TrackerCallback()
+    val_seq = RandomSequence(4)
+    out = model.fit(RandomSequence(3),
+                    epochs=5,
+                    initial_epoch=0,
+                    validation_data=val_seq,
+                    callbacks=[tracker_cb],
+                    max_queue_size=1)
     assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
     assert tracker_cb.trained_batches == list(range(12)) * 5
     assert 12 * 5 <= len(val_seq.logs) <= (12 * 5) + 2  # the queue may be full.
@@ -503,6 +539,20 @@ def test_fit_generator():
     assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
     assert tracker_cb.trained_batches == list(range(12)) * 5
     assert len(val_seq.logs) == 12 * 5
+
+    tracker_cb = TrackerCallback()
+    val_seq = RandomSequence(4)
+    out = model.fit(RandomSequence(3),
+                    steps_per_epoch=3,
+                    epochs=5,
+                    initial_epoch=0,
+                    validation_data=val_seq,
+                    validation_steps=3,
+                    max_queue_size=1,
+                    callbacks=[tracker_cb])
+    assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
+    assert tracker_cb.trained_batches == list(range(3)) * 5
+    assert len(val_seq.logs) <= 4 * 5
 
     # fit_generator will throw an exception
     # if steps is unspecified for regular generator
@@ -570,11 +620,19 @@ def test_fit_generator_shape():
         RandomSequence(batch_size, sequence_length=sequence_length))
     assert np.shape(out[0]) == shape_0 and np.shape(out[1]) == shape_1
 
+    out = model.predict(
+        RandomSequence(batch_size, sequence_length=sequence_length))
+    assert np.shape(out[0]) == shape_0 and np.shape(out[1]) == shape_1
+
     # Multiple outputs and multiple steps.
     batch_size = 5
     sequence_length = 2
     shape_0, shape_1 = expected_shape(batch_size, sequence_length)
     out = model.predict_generator(
+        RandomSequence(batch_size, sequence_length=sequence_length))
+    assert np.shape(out[0]) == shape_0 and np.shape(out[1]) == shape_1
+
+    out = model.predict(
         RandomSequence(batch_size, sequence_length=sequence_length))
     assert np.shape(out[0]) == shape_0 and np.shape(out[1]) == shape_1
 
@@ -591,11 +649,19 @@ def test_fit_generator_shape():
         RandomSequence(batch_size, sequence_length=sequence_length))
     assert np.shape(out) == shape_0
 
+    out = single_output_model.predict(
+        RandomSequence(batch_size, sequence_length=sequence_length))
+    assert np.shape(out) == shape_0
+
     # Single output and multiple steps.
     batch_size = 5
     sequence_length = 2
     shape_0, _ = expected_shape(batch_size, sequence_length)
     out = single_output_model.predict_generator(
+        RandomSequence(batch_size, sequence_length=sequence_length))
+    assert np.shape(out) == shape_0
+
+    out = single_output_model.predict(
         RandomSequence(batch_size, sequence_length=sequence_length))
     assert np.shape(out) == shape_0
 
@@ -732,6 +798,32 @@ def test_check_bad_shape():
             [a], [losses.categorical_crossentropy], [(2, 3, 6)])
 
     assert 'targets to have the same shape' in str(exc)
+
+
+@pytest.mark.parametrize('input_metrics,expected_output', [
+    (None, [[], []]),
+    (['mse', 'mae'], [['mse', 'mae'], ['mse', 'mae']]),
+    ({'layer_1': 'mae', 'layer_2': 'mse'}, [['mae'], ['mse']]),
+])
+def test_collect_metrics(input_metrics, expected_output):
+    output_names = ['layer_1', 'layer_2']
+
+    output_metrics = training_utils.collect_metrics(input_metrics,
+                                                    output_names)
+    assert output_metrics == expected_output
+
+
+def test_collect_metrics_with_invalid_metrics_format():
+    with pytest.raises(TypeError):
+        training_utils.collect_metrics({'a', 'set', 'type'}, [])
+
+
+def test_collect_metrics_with_invalid_layer_name():
+    with pytest.warns(Warning) as w:
+        training_utils.collect_metrics({'unknown_layer': 'mse'}, ['layer_1'])
+
+    warning_raised = all(['unknown_layer' in str(w_.message) for w_ in w])
+    assert warning_raised, 'Warning was raised for unknown_layer'
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow',
@@ -1003,6 +1095,7 @@ def test_model_with_external_loss():
 
         # test evaluate_generator for framework-native data tensors
         out = model.evaluate_generator(generator, steps=3)
+        out = model.evaluate(generator, steps=3)
 
         # test fit with validation data
         with pytest.raises(ValueError):
@@ -1130,12 +1223,12 @@ def test_target_tensors():
     # multi-output, not enough target tensors when `target_tensors` is not a dict
     with pytest.raises(ValueError,
                        match='When passing a list as `target_tensors`, it should '
-                             'have one entry per model output. The model has \d '
+                             'have one entry per model output. The model has \\d '
                              'outputs, but you passed target_tensors='):
         model.compile(optimizer='rmsprop', loss='mse',
                       target_tensors=[target_a])
     with pytest.raises(ValueError,
-                       match='The model has \d outputs, but you passed a single '
+                       match='The model has \\d outputs, but you passed a single '
                              'tensor as `target_tensors`. Expected a list or '
                              'a dict of tensors.'):
         model.compile(optimizer='rmsprop', loss='mse',
@@ -1593,6 +1686,48 @@ def test_sample_weights():
                                                  class_weights)
     expected = sample_weights * np.array([0.5, 1., 0.5, 0.5, 1.5])
     assert np.allclose(weights, expected)
+
+
+def test_validation_freq():
+    model = Sequential([Dense(1)])
+    model.compile('sgd', 'mse')
+
+    def _gen():
+        while True:
+            yield np.ones((2, 10)), np.ones((2, 1))
+
+    x, y = np.ones((10, 10)), np.ones((10, 1))
+
+    class ValCounter(Callback):
+
+        def __init__(self):
+            self.val_runs = 0
+
+        def on_test_begin(self, logs=None):
+            self.val_runs += 1
+
+    # Test in training_arrays.py
+    val_counter = ValCounter()
+    model.fit(
+        x,
+        y,
+        batch_size=2,
+        epochs=4,
+        validation_data=(x, y),
+        validation_freq=2,
+        callbacks=[val_counter])
+    assert val_counter.val_runs == 2
+
+    # Test in training_generator.py
+    val_counter = ValCounter()
+    model.fit_generator(
+        _gen(),
+        epochs=4,
+        steps_per_epoch=5,
+        validation_data=(x, y),
+        validation_freq=[4, 2, 2, 1],
+        callbacks=[val_counter])
+    assert val_counter.val_runs == 3
 
 
 if __name__ == '__main__':
