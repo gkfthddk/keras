@@ -96,7 +96,7 @@ class wkiter(object):
     self.count=0
     self.rc=rc
     self.onehot=onehot
-    self.order=order
+    self.order=1
     #self.file=rt.TFile(data_path,'read')
     dataname1=data_path[0]
     dataname2=data_path[1]
@@ -234,13 +234,14 @@ class wkiter(object):
     del qptset
     self.qetaset=np.array(qetaset)
     del qetaset
-    if("r" in self.rc):
+    """if("r" in self.rc):
       for c in range(channel):
         for i in range(3):
-          std=np.std(abs(np.append(self.qjetset[:,c,i],self.gjetset[:,c,i])))
-          mean=np.mean(abs(np.append(self.qjetset[:,c,i],self.gjetset[:,c,i])))
-          self.qjetset[:,c,i]=(self.qjetset[:,c,i])/mean
-          self.gjetset[:,c,i]=(self.gjetset[:,c,i])/mean
+          #std=np.std(abs(np.append(self.qjetset[:,c,i],self.gjetset[:,c,i])))
+          #mean=np.mean(abs(np.append(self.qjetset[:,c,i],self.gjetset[:,c,i])))
+          self.qjetset[:,c,i]=(self.qjetset[:,c,i])#/mean
+          self.gjetset[:,c,i]=(self.gjetset[:,c,i])#/mean
+    """      
     self.reset()
   def __iter__(self):
     return self
