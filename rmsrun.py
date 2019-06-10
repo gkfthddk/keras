@@ -74,8 +74,8 @@ print("rc",rc)
 rc="r"
 #model.compile(loss='mean_squared_error',
 model.compile(loss=args.loss,
-              optimizer=keras.optimizers.SGD(),
-        metrics=['accuracy'])
+              optimizer=keras.optimizers.RMSprop(),
+	      metrics=['accuracy'])
 """model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.SGD(),
               metrics=['accuracy'])
@@ -93,8 +93,8 @@ vggdata="Data/gg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
 if(args.isz==0):
   tqdata="Data/zj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
   tgdata="Data/jj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
-  train=wkiter([tqdata,tgdata],batch_size=batch_size,end=args.end*0.7,istrain=1,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
-  valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.8*args.end,end=args.end*1.,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
+  #train=wkiter([tqdata,tgdata],batch_size=batch_size,end=args.end*0.7,istrain=1,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
+  #valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.8*args.end,end=args.end*1.,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
   #valid2=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=2048,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
   #valid3=wkiter([vqqdata,vggdata],batch_size=batch_size,end=2048,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
 elif(args.isz==1):
@@ -112,22 +112,27 @@ else:
 print("data ",tqdata)
 
 savename='save/'+str(args.save)
-history=AddVal([(next(valid1.next()),"val1")],savename)
+loaded=np.load('pt{}.npz'.format(args.pt))
+#history=AddVal([(next(valid1.next()),"val1")],savename)
+history=AddVal([([loaded['vx'][0],loaded['vy']],"val1")],savename)
 #history=AddVal([(valid1,"val1"),(valid2,"val2"),(valid3,"val3")],savename)
 os.system("mkdir "+savename)
 os.system("rm "+savename+'/log.log')
 plot_model(model,to_file=savename+'/model.png')
 print("### plot done ###")
-print ("train",train.totalnum())
+#print ("train",train.totalnum())
 import logging
 logging.basicConfig(filename=savename+'/log.log',level=logging.DEBUG)
 logging.info(str(args))
 logging.info(str(datetime.datetime.now()))
-logging.info(str(train.totalnum())+" batches")
+#logging.info(str(train.totalnum())+" batches")
 #logger=keras.callbacks.CSVLogger(savename+'/log.log',append=True)
 #logger=keras.callbacks.TensorBoard(log_dir=savename+'/logs',histogram_freq=0, write_graph=True , write_images=True, batch_size=20)
 checkpoint=keras.callbacks.ModelCheckpoint(filepath=savename+'/check_{epoch}',monitor='val_loss',verbose=0,save_best_only=False,mode='auto',period=1)
-X,Y=next(train.next())
+#X,Y=next(train.next())
+X=loaded['X'][0]
+Y=loaded['Y']
+X=np.array(X)[:,:args.channel,:]
 #X=X[0]
 model.fit(X,Y,batch_size=512,epochs=epochs,verbose=1,callbacks=[checkpoint,history])
 #model.fit_generator(train.next(),steps_per_epoch=train.totalnum(),epochs=epochs,verbose=1,callbacks=[checkpoint,history])

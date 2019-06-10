@@ -74,7 +74,7 @@ print("rc",rc)
 rc="r"
 #model.compile(loss='mean_squared_error',
 model.compile(loss=args.loss,
-              optimizer=keras.optimizers.SGD(),
+              optimizer=keras.optimizers.Adam(),
         metrics=['accuracy'])
 """model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.SGD(),

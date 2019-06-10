@@ -39,7 +39,7 @@ from importlib import import_module
 import datetime
 start=datetime.datetime.now()
 config =tf.ConfigProto()
-config.gpu_options.per_process_gpu_memory_fraction=0.45
+config.gpu_options.per_process_gpu_memory_fraction=0.35
 set_session(tf.Session(config=config))
 
 batch_size = args.batch_size
@@ -97,22 +97,22 @@ if(args.isz==0):
 elif(args.isz==1):
   tqdata="Data/zq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
   tgdata="Data/zg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
-  train=wkiter([tqdata,tgdata],batch_size=batch_size,begin=0.5*args.end,end=args.end*1.,istrain=1,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin)
-  valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.7*args.end,end=args.end*0.7+512,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin)
-  #valid2=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=args.end*0.1,rc=rc,onehot=onehot)
+  train=wkiter([tqdata,tgdata],batch_size=batch_size,begin=0.6*args.end,end=args.end*1.,istrain=1,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
+  #valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.7*args.end,end=args.end*0.7+512,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
+  valid1=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=args.end*0.2,rc=rc,onehot=onehot)
   #valid3=wkiter([vqqdata,vggdata],batch_size=batch_size,end=512,rc=rc,onehot=onehot)
 else:
   tqdata="Data/qq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
   tgdata="Data/gg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
-  train=wkiter([tqdata,tgdata],batch_size=batch_size,begin=0.5*args.end,end=args.end*1.,istrain=1,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin)
-  valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.7*args.end,end=args.end*0.7+512,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin)
+  train=wkiter([tqdata,tgdata],batch_size=batch_size,begin=0.6*args.end,end=args.end*1.,istrain=1,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
+  #valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.7*args.end,end=args.end*0.7+512,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
   #valid2=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=512,rc=rc,onehot=onehot)
-  #valid3=wkiter([vqqdata,vggdata],batch_size=batch_size,end=args.end*0.1,rc=rc,onehot=onehot)
+  valid1=wkiter([vqqdata,vggdata],batch_size=batch_size,end=args.end*0.2,rc=rc,onehot=onehot)
 print("data ",tqdata)
 
 savename='save/'+str(args.save)
 #history=AddVal([(valid1,"val1"),(valid2,"val2"),(valid3,"val3")],savename)
-history=AddVal([(valid1,"val1")],savename)
+history=AddVal([(next(valid1.next()),"val1")],savename)
 os.system("mkdir "+savename)
 os.system("rm "+savename+'/log.log')
 plot_model(model,to_file=savename+'/model.png')
@@ -126,18 +126,20 @@ logging.info(str(train.totalnum())+" batches")
 #logger=keras.callbacks.CSVLogger(savename+'/log.log',append=True)
 #logger=keras.callbacks.TensorBoard(log_dir=savename+'/logs',histogram_freq=0, write_graph=True , write_images=True, batch_size=20)
 checkpoint=keras.callbacks.ModelCheckpoint(filepath=savename+'/check_{epoch}',monitor='val_loss',verbose=0,save_best_only=False,mode='auto',period=1)
-model.fit_generator(train.next(),steps_per_epoch=train.totalnum(),epochs=epochs,verbose=1,callbacks=[checkpoint,history])
+X,Y=next(train.next())
+model.fit(X,Y,batch_size=512,epochs=epochs,verbose=1,callbacks=[checkpoint,history])
+#model.fit_generator(train.next(),steps_per_epoch=train.totalnum(),epochs=epochs,verbose=1,callbacks=[checkpoint,history])
 
 print(history)
 f=open(savename+'/history','w')
-try:
+"""try:
   one=history.history['val1_auc'].index(max(history.history['val1_auc']))
   f.write(str(one)+'\n')
   print(one)
   for i in range(epochs):
     if(i!=one):os.system("rm "+savename+"/check_"+str(i+1))
 except:
-  print("failed to drop")
+  print("failed to drop")"""
 f.write(str(history.history))
 f.close()
 print (datetime.datetime.now()-start)

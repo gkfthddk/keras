@@ -21,6 +21,7 @@ args=parser.parse_args()
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu) 
+#os.environ["CUDA_VISIBLE_DEVICES"]=""
 import keras
 from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Flatten, Embedding
@@ -34,9 +35,9 @@ from keras.backend.tensorflow_backend import set_session
 from importlib import import_module
 import datetime
 start=datetime.datetime.now()
-config =tf.ConfigProto()
-config.gpu_options.per_process_gpu_memory_fraction=0.4
-set_session(tf.Session(config=config))
+#config =tf.ConfigProto()
+#config.gpu_options.per_process_gpu_memory_fraction=0.4
+#set_session(tf.Session(config=config))
 
 batch_size = args.batch_size
 num_classes = 2 
@@ -68,7 +69,7 @@ print("rc",rc)
 #model.compile(loss='mean_squared_error',
 model.compile(loss=args.loss,
               optimizer=keras.optimizers.SGD(),
-	      metrics=['accuracy'])
+        metrics=['accuracy'])
 """model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.SGD(),
               metrics=['accuracy'])
@@ -98,7 +99,6 @@ valid2=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=args.end*0.3,rc=rc,one
 valid3=wkiter([vqqdata,vggdata],batch_size=batch_size,end=args.end*0.3,rc=rc,onehot=onehot)
 
 savename='save/'+str(args.save)
-history=AddVal([(valid1,"val1"),(valid2,"val2"),(valid3,"val3")],savename)
 os.system("mkdir "+savename)
 os.system("rm "+savename+'/log.log')
 plot_model(model,to_file=savename+'/model.png')
@@ -112,21 +112,5 @@ logging.info(str(train.totalnum())+" batches")
 #logger=keras.callbacks.CSVLogger(savename+'/log.log',append=True)
 #logger=keras.callbacks.TensorBoard(log_dir=savename+'/logs',histogram_freq=0, write_graph=True , write_images=True, batch_size=20)
 checkpoint=keras.callbacks.ModelCheckpoint(filepath=savename+'/check_{epoch}',monitor='val_loss',verbose=0,save_best_only=False,mode='auto',period=1)
-model.fit_generator(train.next(),steps_per_epoch=train.totalnum(),epochs=epochs,verbose=1,callbacks=[checkpoint,history])
+model.fit_generator(train.next(),steps_per_epoch=train.totalnum(),epochs=epochs,verbose=1,callbacks=[checkpoint])
 
-print(history)
-f=open(savename+'/history','w')
-try:
-  one=history.history['val1_auc'].index(max(history.history['val1_auc']))
-  two=history.history['val2_auc'].index(max(history.history['val2_auc']))
-  three=history.history['val3_auc'].index(max(history.history['val3_auc']))
-  f.write(str(one)+" "+str(two)+" "+str(three)+'\n')
-  print(one,two,three)
-  for i in range(epochs):
-    if(i!=one and i!=two and i!=three):os.system("rm "+savename+"/check_"+str(i+1))
-except:
-  print("failed to drop")
-f.write(str(history.history))
-f.close()
-print (datetime.datetime.now()-start)
-logging.info("spent time "+str(datetime.datetime.now()-start))

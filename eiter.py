@@ -60,7 +60,9 @@ class AddVal(Callback):
     f.close()
 
 class wkiter(object):
-  def __init__(self,data_path,data_names=['data'],label_names=['softmax_label'],batch_size=100,begin=0.0,end=1.0,rat=0.7,endcut=1,arnum=16,maxx=0.4,maxy=0.4,istrain=0, varbs=0,rc="rc",onehot=0,channel=30,order=1):
+  def __init__(self,data_path,data_names=['data'],label_names=['softmax_label'],batch_size=100,begin=0.0,end=1.0,rat=0.7,endcut=1,arnum=16,maxx=0.4,maxy=0.4,istrain=0, varbs=0,rc="rc",onehot=0,channel=30,order=1,eta=0.,etabin=2.4):
+    self.eta=eta
+    self.etabin=etabin
     self.channel=channel
     self.istrain=istrain
     #if(batch_size<100):
@@ -156,31 +158,36 @@ class wkiter(object):
       for i in range(self.batch_size):
         if(random.random()<0.5):
           self.gjet.GetEntry(self.a)
+          self.a+=1
+          if(abs(self.gjet.eta)<self.eta or abs(self.gjet.eta)>self.eta+self.etabin):
+            while(abs(self.gjet.eta)<self.eta or abs(self.gjet.eta)>self.eta+self.etabin):
+              self.gjet.GetEntry(self.a)
+              self.a+=1
+              if(self.a>=self.gEnd):break
           ##label q=1 g=0
           labels.append([0,1])#q=0 q=1
-          self.a+=1
+          dau_pt=self.gjet.dau_pt
+          dau_deta=self.gjet.dau_deta
+          dau_dphi=self.gjet.dau_dphi
+          dau_charge=self.gjet.dau_charge
+          dau_pid=self.gjet.dau_pid
+          dau_is_e=np.zeros(len(dau_pid))
+          dau_is_mu=np.zeros(len(dau_pid))
+          dau_is_r=np.zeros(len(dau_pid))
+          dau_is_chad=np.zeros(len(dau_pid))
+          dau_is_nhad=np.zeros(len(dau_pid))
+          for t in range(len(dau_pid)):
+            if(abs(dau_pid[t])==11):dau_is_e[t]=1.
+            elif(abs(dau_pid[t])==13):dau_is_mu[t]=1.
+            elif(abs(dau_pid[t])==22):dau_is_r[t]=1.
+            elif(dau_pid[t]==0):dau_is_nhad[t]=1.
+            else:dau_is_chad[t]=1.
 
           if("c" in self.rc):
             #jetset.append(np.array(self.gim).reshape((3,2*arnum+1,2*arnum+1)))
             #jetset.append([np.array(self.gjet.image_chad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_nhad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_chad_mult_33).reshape(2*arnum+1,2*arnum+1)])
             jetset.append([np.array(self.gjet.image_chad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_nhad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_electron_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_muon_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_photon_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_chad_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_nhad_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_electron_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_muon_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_photon_mult_33).reshape(2*arnum+1,2*arnum+1)])
           if("r" in self.rc):
-            dau_pt=self.gjet.dau_pt
-            dau_deta=self.gjet.dau_deta
-            dau_dphi=self.gjet.dau_dphi
-            dau_charge=self.gjet.dau_charge
-            dau_pid=self.gjet.dau_pid
-            dau_is_e=np.zeros(len(dau_pid))
-            dau_is_mu=np.zeros(len(dau_pid))
-            dau_is_r=np.zeros(len(dau_pid))
-            dau_is_chad=np.zeros(len(dau_pid))
-            dau_is_nhad=np.zeros(len(dau_pid))
-            for t in range(len(dau_pid)):
-              if(abs(dau_pid[t])==11):dau_is_e[t]=1.
-              elif(abs(dau_pid[t])==13):dau_is_mu[t]=1.
-              elif(abs(dau_pid[t])==22):dau_is_r[t]=1.
-              elif(dau_pid[t]==0):dau_is_nhad[t]=1.
-              else:dau_is_chad[t]=1.
             dausort=sorted(range(len(dau_pt)),key=lambda k: dau_pt[k],reverse=True)
             #dauset.append([[dau_pt[dausort[i]], dau_deta[dausort[i]], dau_dphi[dausort[i]], dau_charge[dausort[i]]] if len(dau_pt)>i else [0.,0.,0.,0.] for i in range(20)])
             if(self.onehot):dauset.append([[dau_pt[dausort[i]], dau_deta[dausort[i]], dau_dphi[dausort[i]], dau_charge[dausort[i]], dau_pid[dausort[i]]] if len(dau_pt)>i else [0.,0.,0.,0.,0.] for i in range(self.channel)])
@@ -199,29 +206,34 @@ class wkiter(object):
             self.endfile=1
         else:
           self.qjet.GetEntry(self.b)
+          self.b+=1
+          if(abs(self.qjet.eta)<self.eta or abs(self.qjet.eta)>self.eta+self.etabin):
+            while(abs(self.qjet.eta)<self.eta or abs(self.qjet.eta)>self.eta+self.etabin):
+              self.qjet.GetEntry(self.b)
+              self.b+=1
+              if(self.b>=self.qEnd):break
           ##label q=1 g=0
           labels.append([1,0])#q=0 q=1
-          self.b+=1
+          dau_pt=self.qjet.dau_pt
+          dau_deta=self.qjet.dau_deta
+          dau_dphi=self.qjet.dau_dphi
+          dau_charge=self.qjet.dau_charge
+          dau_pid=self.qjet.dau_pid
+          dau_is_e=np.zeros(len(dau_pid))
+          dau_is_mu=np.zeros(len(dau_pid))
+          dau_is_r=np.zeros(len(dau_pid))
+          dau_is_chad=np.zeros(len(dau_pid))
+          dau_is_nhad=np.zeros(len(dau_pid))
+          for t in range(len(dau_pid)):
+            if(abs(dau_pid[t])==11):dau_is_e[t]=1.
+            elif(abs(dau_pid[t])==13):dau_is_mu[t]=1.
+            elif(abs(dau_pid[t])==22):dau_is_r[t]=1.
+            elif(dau_pid[t]==0):dau_is_nhad[t]=1.
+            else:dau_is_chad[t]=1.
 
           if("c" in self.rc):
             jetset.append([np.array(self.qjet.image_chad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_nhad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_electron_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_muon_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_photon_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_chad_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_nhad_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_electron_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_muon_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_photon_mult_33).reshape(2*arnum+1,2*arnum+1)])
           if("r" in self.rc):
-            dau_pt=self.qjet.dau_pt
-            dau_deta=self.qjet.dau_deta
-            dau_dphi=self.qjet.dau_dphi
-            dau_charge=self.qjet.dau_charge
-            dau_pid=self.qjet.dau_pid
-            dau_is_e=np.zeros(len(dau_pid))
-            dau_is_mu=np.zeros(len(dau_pid))
-            dau_is_r=np.zeros(len(dau_pid))
-            dau_is_chad=np.zeros(len(dau_pid))
-            dau_is_nhad=np.zeros(len(dau_pid))
-            for t in range(len(dau_pid)):
-              if(abs(dau_pid[t])==11):dau_is_e[t]=1.
-              elif(abs(dau_pid[t])==13):dau_is_mu[t]=1.
-              elif(abs(dau_pid[t])==22):dau_is_r[t]=1.
-              elif(dau_pid[t]==0):dau_is_nhad[t]=1.
-              else:dau_is_chad[t]=1.
             dausort=sorted(range(len(dau_pt)),key=lambda k: dau_pt[k],reverse=True)
             #dauset.append([[dau_pt[dausort[i]], dau_deta[dausort[i]], dau_dphi[dausort[i]], dau_charge[dausort[i]]] if len(dau_pt)>i else [0.,0.,0.,0.] for i in range(20)])
             if(self.onehot):dauset.append([[dau_pt[dausort[i]], dau_deta[dausort[i]], dau_dphi[dausort[i]], dau_charge[dausort[i]], dau_pid[dausort[i]]] if len(dau_pt)>i else [0.,0.,0.,0.,0.] for i in range(self.channel)])

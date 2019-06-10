@@ -41,7 +41,7 @@ from importlib import import_module
 import datetime
 start=datetime.datetime.now()
 config =tf.ConfigProto()
-config.gpu_options.per_process_gpu_memory_fraction=0.3
+config.gpu_options.per_process_gpu_memory_fraction=0.4
 set_session(tf.Session(config=config))
 
 batch_size = args.batch_size
@@ -75,7 +75,7 @@ rc="r"
 #model.compile(loss='mean_squared_error',
 model.compile(loss=args.loss,
               optimizer=keras.optimizers.SGD(),
-        metrics=['accuracy'])
+	      metrics=['accuracy'])
 """model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.SGD(),
               metrics=['accuracy'])
@@ -94,7 +94,7 @@ if(args.isz==0):
   tqdata="Data/zj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
   tgdata="Data/jj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
   train=wkiter([tqdata,tgdata],batch_size=batch_size,end=args.end*0.7,istrain=1,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
-  valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.8*args.end,end=args.end*1.,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
+  valid1=wkiter([vzjdata,vjjdata],batch_size=100000,begin=0.8*args.end,end=args.end*1.,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
   #valid2=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=2048,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
   #valid3=wkiter([vqqdata,vggdata],batch_size=batch_size,end=2048,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
 elif(args.isz==1):
@@ -127,10 +127,7 @@ logging.info(str(train.totalnum())+" batches")
 #logger=keras.callbacks.CSVLogger(savename+'/log.log',append=True)
 #logger=keras.callbacks.TensorBoard(log_dir=savename+'/logs',histogram_freq=0, write_graph=True , write_images=True, batch_size=20)
 checkpoint=keras.callbacks.ModelCheckpoint(filepath=savename+'/check_{epoch}',monitor='val_loss',verbose=0,save_best_only=False,mode='auto',period=1)
-X,Y=next(train.next())
-#X=X[0]
-model.fit(X,Y,batch_size=512,epochs=epochs,verbose=1,callbacks=[checkpoint,history])
-#model.fit_generator(train.next(),steps_per_epoch=train.totalnum(),epochs=epochs,verbose=1,callbacks=[checkpoint,history])
+model.fit_generator(train.next(),steps_per_epoch=train.totalnum(),epochs=epochs,verbose=1,callbacks=[checkpoint,history])
 
 print(history)
 f=open(savename+'/history','w')

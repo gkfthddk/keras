@@ -243,7 +243,7 @@ class wkiter(object):
           self.gjetset[:,c,i]=(self.gjetset[:,c,i])#/mean
     """      
     self.reset()
-    print("length ",len(self.gjetset),len(self.qjetset))
+    print("length ",len(self.gjetset),len(self.qjetset),self.gEnd,self.qEnd,self.istrain)
   def __iter__(self):
     return self
 
@@ -285,6 +285,7 @@ class wkiter(object):
       for i in range(self.batch_size):
         if(random.random()<0.5):
           if(self.a-self.gBegin>=len(self.gjetset)):
+            print("length",self.a-self.gBegin,self.b-self.qBegin,self.istrain)
             self.a=self.gBegin
             self.endfile=1
             break
@@ -293,6 +294,7 @@ class wkiter(object):
           self.a+=1
         else:
           if(self.b-self.qBegin>=len(self.qjetset)):
+            print("length",self.a-self.gBegin,self.b-self.qBegin,self.istrain)
             self.b=self.qBegin
             self.endfile=1
             break

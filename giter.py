@@ -28,37 +28,31 @@ class AddVal(Callback):
   def on_epoch_end(self, epoch, logs=None):
     logs=logs or {}
     self.epoch.append(epoch)
-    print("validation")
+
     for i,j in logs.items():
       self.history.setdefault(i,[]).append(j)
 
     for valid_set in self.valid_sets:
       valid,val_name=valid_set
-      #valid.reset()
-      #gen=valid.next()
+      valid.reset()
+      gen=valid.next()
       #tar_set=[]
       #pre_set=[]
       atar_set=[]
       apre_set=[]
-      X,Y=valid
-      #X=X[0]
-      
-      """for j in range(valid.totalnum()):
+      for j in range(valid.totalnum()):
         data,target=next(gen)
         #print(target)
         #tar_set=np.append(tar_set,target[:,0])
         #pre_set=np.append(pre_set,self.model.predict(data,verbose=0)[:,0])
-        try:atar_set.extend(target[:,0])
-        except:print(np.array(target).shape)
+        atar_set.extend(target[:,0])
         apre_set.extend(self.model.predict(data,verbose=0)[:,0])
 
-      valid.reset()"""
+      valid.reset()
       #tar_set=np.array(tar_set)
       #pre_set=np.array(pre_set)
-      
-      atar_set=np.array(Y)[:,0]
-      apre_set=np.array(self.model.predict(X,verbose=0)[:,0])
-      
+      atar_set=np.array(atar_set)
+      apre_set=np.array(apre_set)
       #print(valid.totalnum(),valid.batch_size)
       #print("############")
       #print(tar_set)
@@ -66,8 +60,8 @@ class AddVal(Callback):
       #print(atar_set)
 
       auc_val=roc_auc_score(atar_set,apre_set)
-      results=self.model.evaluate(X,Y)
-      print(results,auc_val)
+      results=self.model.evaluate_generator(valid.next(),valid.totalnum())
+      #print(results,auc_val)
 
       self.history.setdefault(val_name+"_auc",[]).append(auc_val)
 
@@ -96,7 +90,7 @@ class wkiter(object):
     self.count=0
     self.rc=rc
     self.onehot=onehot
-    self.order=1
+    self.order=order
     #self.file=rt.TFile(data_path,'read')
     dataname1=data_path[0]
     dataname2=data_path[1]
@@ -140,6 +134,9 @@ class wkiter(object):
     self.maxy=maxy
     self.endfile=0
     self.endcut=endcut
+    if(self.istrain):
+      jgaus=eval(open("jjgaus.txt").readline())
+      zgaus=eval(open("zjgaus.txt").readline())
     qjetset=[]
     gjetset=[]
     qptset=[]
@@ -159,6 +156,9 @@ class wkiter(object):
       if(self.pt!=None):
         if(self.pt*self.ptmin>self.gjet.pt or self.pt*self.ptmax<self.gjet.pt):
           continue
+        if(self.istrain):
+          if(random.random()>jgaus[int(250*self.gjet.pt/self.pt)]):
+            continue
       gptset.append(self.gjet.pt)
       getaset.append(self.gjet.eta)
       if("c" in self.rc):
@@ -178,12 +178,11 @@ class wkiter(object):
           if(abs(dau_pid[t])==11):dau_is_e[t]=1.
           elif(abs(dau_pid[t])==13):dau_is_mu[t]=1.
           elif(abs(dau_pid[t])==22):dau_is_r[t]=1.
-          elif(dau_charge[t]==0):dau_is_nhad[t]=1.
+          elif(dau_pid[t]==0):dau_is_nhad[t]=1.
           else:dau_is_chad[t]=1.
         dausort=sorted(range(len(dau_pt)),key=lambda k: dau_pt[k],reverse=True)
         if(self.order):
           gjetset.append([[dau_pt[dausort[i]], dau_deta[dausort[i]], dau_dphi[dausort[i]], dau_charge[dausort[i]], dau_is_e[dausort[i]], dau_is_mu[dausort[i]], dau_is_r[dausort[i]], dau_is_chad[dausort[i]], dau_is_nhad[dausort[i]]] if len(dau_pt)>i else [0.,0.,0.,0.,0.,0.,0.,0.,0.] for i in range(self.channel)])
-        
     self.gjetset=np.array(gjetset)
     del gjetset
     self.gptset=np.array(gptset)
@@ -203,6 +202,9 @@ class wkiter(object):
       if(self.pt!=None):
         if(self.pt*self.ptmin>self.qjet.pt or self.pt*self.ptmax<self.qjet.pt):
           continue
+        if(self.istrain):
+          if(random.random()>zgaus[int(250*self.qjet.pt/self.pt)]):
+            continue
       qptset.append(self.qjet.pt)
       qetaset.append(self.qjet.eta)
       if("c" in self.rc):
@@ -222,7 +224,7 @@ class wkiter(object):
           if(abs(dau_pid[t])==11):dau_is_e[t]=1.
           elif(abs(dau_pid[t])==13):dau_is_mu[t]=1.
           elif(abs(dau_pid[t])==22):dau_is_r[t]=1.
-          elif(dau_charge[t]==0):dau_is_nhad[t]=1.
+          elif(dau_pid[t]==0):dau_is_nhad[t]=1.
           else:dau_is_chad[t]=1.
         dausort=sorted(range(len(dau_pt)),key=lambda k: dau_pt[k],reverse=True)
         #dauset.append([[dau_pt[dausort[i]], dau_deta[dausort[i]], dau_dphi[dausort[i]], dau_charge[dausort[i]]] if len(dau_pt)>i else [0.,0.,0.,0.] for i in range(20)])
@@ -234,16 +236,7 @@ class wkiter(object):
     del qptset
     self.qetaset=np.array(qetaset)
     del qetaset
-    """if("r" in self.rc):
-      for c in range(channel):
-        for i in range(3):
-          #std=np.std(abs(np.append(self.qjetset[:,c,i],self.gjetset[:,c,i])))
-          #mean=np.mean(abs(np.append(self.qjetset[:,c,i],self.gjetset[:,c,i])))
-          self.qjetset[:,c,i]=(self.qjetset[:,c,i])#/mean
-          self.gjetset[:,c,i]=(self.gjetset[:,c,i])#/mean
-    """      
     self.reset()
-    print("length ",len(self.gjetset),len(self.qjetset))
   def __iter__(self):
     return self
 
@@ -274,7 +267,7 @@ class wkiter(object):
   def trainnum(self):
     return self.End-self.Begin
   def totalnum(self):
-    return int(math.ceil(1.*(self.gEnd-self.gBegin+self.qEnd-self.qBegin)/(self.batch_size*1.00)))
+    return int(1.*(self.gEnd-self.gBegin+self.qEnd-self.qBegin)/(self.batch_size*1.00))
   def next(self):
     while self.endfile==0:
       self.count+=1
