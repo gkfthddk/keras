@@ -8,7 +8,7 @@ from __future__ import print_function
 import argparse
 import keras
 from keras import backend as K
-from ziter import *
+from aiter import *
 import numpy as np
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session

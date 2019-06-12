@@ -7,7 +7,7 @@ Gets to 99.25% test accuracy after 12 epochs
 from __future__ import print_function
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 import argparse
 import keras
 from keras import backend as K
@@ -19,7 +19,7 @@ from importlib import import_module
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 config =tf.ConfigProto()
-config.gpu_options.per_process_gpu_memory_fraction=0.2
+config.gpu_options.per_process_gpu_memory_fraction=0.1
 set_session(tf.Session(config=config))
 
 batch_size = 256
@@ -28,7 +28,7 @@ parser=argparse.ArgumentParser()
 parser.add_argument("--rat",type=float,default=0.6,help='ratio for weak qg batch')
 parser.add_argument("--end",type=float,default=1.,help='end ratio')
 parser.add_argument("--epoch",type=int,default=10,help='epoch')
-parser.add_argument("--save",type=str,default="qg100lstmcnn",help='rch')
+parser.add_argument("--save",type=str,default="qg100simple",help='rch')
 parser.add_argument("--rc",type=str,default='rc',help='rnn or cnn')
 args=parser.parse_args()
 

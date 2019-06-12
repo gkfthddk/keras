@@ -39,20 +39,24 @@ for f in files:
     continue
   savename="save/"+f
   acc=[]
+  indx=[]
   try:
     history=open(savename+"/history")
-    indx=[eval(i) for i in history.readline().split(' ')]
-    hist=eval(history.readline())
-    acc.append(max(hist['val1_auc']))
-    try:
-      acc.append(max(hist['val2_auc']))
-      acc.append(max(hist['val3_auc']))
-    except:pass
-    line="{}".format(f)
-    for i,j in zip(indx,acc):
-      line+="\t{:.3f}\t{}".format(j,i)
-    print(line)
-  except:
-    pass
+    for iii in range(2):
+      try:
+        hist=eval(history.readline())
+        indx.append(hist['val1_auc'].index(max(hist['val1_auc'])))
+        #indx.append(hist['val2_auc'].index(max(hist['val2_auc'])))
+        #indx.append(hist['val3_auc'].index(max(hist['val3_auc'])))
+        acc.append(max(hist['val1_auc']))
+        #acc.append(max(hist['val2_auc']))
+        #acc.append(max(hist['val3_auc']))
+        line="{}".format(f)
+        for i,j in zip(indx,acc):
+          line+="\t{:.3f}\t{}".format(j,i)
+        print(line)
+      except:
+        pass
+  except:pass
 
 print datetime.datetime.now()-start

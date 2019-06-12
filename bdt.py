@@ -1,6 +1,7 @@
 import ROOT as rt
 for pt in [100,200,500,1000]:
-  for cut in ["nocut","eta","pt","etapt"]:
+  #for cut in ["nocut","eta","pt","etapt","elsept"]:
+  for cut in ["elsept"]:
     zqdata=rt.TFile("Data/zq_pt_{}_{}.root".format(pt,int(pt*1.1)))
     zgdata=rt.TFile("Data/zg_pt_{}_{}.root".format(pt,int(pt*1.1)))
     qqdata=rt.TFile("Data/qq_pt_{}_{}.root".format(pt,int(pt*1.1)))
@@ -21,21 +22,38 @@ for pt in [100,200,500,1000]:
       cavn+=1
       ma=0;
       mi=0;
+      pa=0;
+      pi=0;
       if(ma<zq.GetMaximum(varss[i])):ma=zq.GetMaximum(varss[i])
-      if(mi>zq.GetMinimum(varss[i])):ma=zq.GetMinimum(varss[i])
+      if(mi>zq.GetMinimum(varss[i])):mi=zq.GetMinimum(varss[i])
       if(ma<zg.GetMaximum(varss[i])):ma=zg.GetMaximum(varss[i])
-      if(mi>zg.GetMinimum(varss[i])):ma=zg.GetMinimum(varss[i])
+      if(mi>zg.GetMinimum(varss[i])):mi=zg.GetMinimum(varss[i])
       if(ma<qq.GetMaximum(varss[i])):ma=qq.GetMaximum(varss[i])
-      if(mi>qq.GetMinimum(varss[i])):ma=qq.GetMinimum(varss[i])
+      if(mi>qq.GetMinimum(varss[i])):mi=qq.GetMinimum(varss[i])
       if(ma<gg.GetMaximum(varss[i])):ma=gg.GetMaximum(varss[i])
-      if(mi>gg.GetMinimum(varss[i])):ma=gg.GetMinimum(varss[i])
+      if(mi>gg.GetMinimum(varss[i])):mi=gg.GetMinimum(varss[i])
+      
       res=60
-      if("mult" in varss[i]):
+      if("chad" in varss[i]):
         hists.append(rt.TH1F("hist{}".format(varss[i]),"{}-{}".format(pt,varss[i]),int(ma),0,int(ma)))
-        hists.append(rt.TH1F("zqhist{}".format(varss[i]),"zq {}".format(varss[i]),int(ma),0,int(ma)))
-        hists.append(rt.TH1F("zghist{}".format(varss[i]),"zg {}".format(varss[i]),int(ma),0,int(ma)))
-        hists.append(rt.TH1F("qqhist{}".format(varss[i]),"qq {}".format(varss[i]),int(ma),0,int(ma)))
-        hists.append(rt.TH1F("gghist{}".format(varss[i]),"gg {}".format(varss[i]),int(ma),0,int(ma)))
+        hists.append(rt.TH1F("zqhist{}".format(varss[i]),"zq {}+".format(varss[i]),int(ma),0,int(ma)))
+        hists.append(rt.TH1F("zghist{}".format(varss[i]),"zg {}+".format(varss[i]),int(ma),0,int(ma)))
+        hists.append(rt.TH1F("qqhist{}".format(varss[i]),"qq {}+".format(varss[i]),int(ma),0,int(ma)))
+        hists.append(rt.TH1F("gghist{}".format(varss[i]),"gg {}+".format(varss[i]),int(ma),0,int(ma)))
+      if("nhad" in varss[i]):
+        if(pa<zq.GetMaximum("photon_mult")):pa=zq.GetMaximum("photon_mult")
+        if(pi>zq.GetMinimum("photon_mult")):pi=zq.GetMinimum("photon_mult")
+        if(pa<zg.GetMaximum("photon_mult")):pa=zg.GetMaximum("photon_mult")
+        if(pi>zg.GetMinimum("photon_mult")):pi=zg.GetMinimum("photon_mult")
+        if(pa<qq.GetMaximum("photon_mult")):pa=qq.GetMaximum("photon_mult")
+        if(pi>qq.GetMinimum("photon_mult")):pi=qq.GetMinimum("photon_mult")
+        if(pa<gg.GetMaximum("photon_mult")):pa=gg.GetMaximum("photon_mult")
+        if(pi>gg.GetMinimum("photon_mult")):pi=gg.GetMinimum("photon_mult")
+        hists.append(rt.TH1F("hist{}".format(varss[i]),"{}-{}".format(pt,varss[i]),int(ma+pa),0,int(ma+pa)))
+        hists.append(rt.TH1F("zqhist{}".format(varss[i]),"zq {}+".format(varss[i]),int(ma+pa),0,int(ma+pa)))
+        hists.append(rt.TH1F("zghist{}".format(varss[i]),"zg {}+".format(varss[i]),int(ma+pa),0,int(ma+pa)))
+        hists.append(rt.TH1F("qqhist{}".format(varss[i]),"qq {}+".format(varss[i]),int(ma+pa),0,int(ma+pa)))
+        hists.append(rt.TH1F("gghist{}".format(varss[i]),"gg {}+".format(varss[i]),int(ma+pa),0,int(ma+pa)))
       elif("eta" in varss[i]):
         hists.append(rt.TH1F("hist{}".format(varss[i]),"{}-{}".format(pt,varss[i]),100,-2.4,2.4))
         hists.append(rt.TH1F("zqhist{}".format(varss[i]),"zq {}".format(varss[i]),100,-2.4,2.4))
@@ -58,10 +76,40 @@ for pt in [100,200,500,1000]:
         cutter="pt<{}&&pt>{}".format(1.093*pt,0.821*pt) 
       if("etapt" == cut):
         cutter="eta<1.&&eta>-1.&&pt<{}&&pt>{}".format(1.093*pt,0.821*pt) 
-      zq.Draw("{}>>zqhist{}".format(varss[i],varss[i]),cutter)
-      zg.Draw("{}>>zghist{}".format(varss[i],varss[i]),cutter)
-      qq.Draw("{}>>qqhist{}".format(varss[i],varss[i]),cutter)
-      gg.Draw("{}>>gghist{}".format(varss[i],varss[i]),cutter)
+      if("elsept" == cut):
+        cutter="pt<{}&&pt>{}&&(eta<-1.||eta>1.)".format(1.093*pt,0.821*pt) 
+
+      if("chad" in varss[i]):
+        for k in range(zq.GetEntries()):
+          zq.GetEntry(k)
+          hists[i*5+1].Fill(zq.chad_mult+zq.electron_mult+zq.muon_mult)
+        for k in range(zg.GetEntries()):
+          zg.GetEntry(k)
+          hists[i*5+2].Fill(zg.chad_mult+zg.electron_mult+zg.muon_mult)
+        for k in range(qq.GetEntries()):
+          qq.GetEntry(k)
+          hists[i*5+3].Fill(qq.chad_mult+qq.electron_mult+qq.muon_mult)
+        for k in range(gg.GetEntries()):
+          gg.GetEntry(k)
+          hists[i*5+4].Fill(gg.chad_mult+gg.electron_mult+gg.muon_mult)
+      elif("nhad" in varss[i]):
+        for k in range(zq.GetEntries()):
+          zq.GetEntry(k)
+          hists[i*5+1].Fill(zq.nhad_mult+zq.photon_mult)
+        for k in range(zg.GetEntries()):
+          zg.GetEntry(k)
+          hists[i*5+2].Fill(zg.nhad_mult+zg.photon_mult)
+        for k in range(qq.GetEntries()):
+          qq.GetEntry(k)
+          hists[i*5+3].Fill(qq.nhad_mult+qq.photon_mult)
+        for k in range(gg.GetEntries()):
+          gg.GetEntry(k)
+          hists[i*5+4].Fill(gg.nhad_mult+gg.photon_mult)
+      else:
+        zq.Draw("{}>>zqhist{}".format(varss[i],varss[i]),cutter)
+        zg.Draw("{}>>zghist{}".format(varss[i],varss[i]),cutter)
+        qq.Draw("{}>>qqhist{}".format(varss[i],varss[i]),cutter)
+        gg.Draw("{}>>gghist{}".format(varss[i],varss[i]),cutter)
 
       mv=0
       for j in range(1,5):

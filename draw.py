@@ -12,7 +12,7 @@ class CompareOUT(object):
         self.data_list = []
         
     def get_yj_result(self,name,rat,test,color=None,legend=None,ls="-",lw=3):
-        x, y = open("./save/{}{}/{}out.dat".format(name,rat,test)).readlines()
+        x, y = open("./save/{}/{}out.dat".format(name,test)).readlines()
         x, y= eval(x), eval(y)
         self.data_list.append({"x": x, "y": y,"name":name,"rat":rat,"test":test,"color":color,"leg":legend,"tm":0,"ls":ls,"lw":lw})
     def get_ens_result(self,name,rat,test,color=None,legend=None,ls="-",lw=3):
@@ -66,8 +66,10 @@ class CompareOUT(object):
                         plt.plot(np.arange(nmin,nmax,ndv)/nn,hist(data["y"],nn),data["ls"],label="{}-{}-{}-gluon".format(data["name"],data["rat"],data["test"]),lw=data["lw"],alpha=0.5,color=data["color"][1])
                 else:
                     if(data["leg"]!=None):
-                        plt.plot(np.arange(nmin,nmax,ndv)/nn,hist(data["x"],nn),data["ls"], label="{}-quark".format(data["leg"]),lw=data["lw"],alpha=0.5,color=cmap(idx))
-                        plt.plot(np.arange(nmin,nmax,ndv)/nn,hist(data["y"],nn),data["ls"], label="{}-gluon".format(data["leg"]),lw=data["lw"],linestyle='--',alpha=0.5,color=cmap(idx))
+                        if("0.0" in data["leg"]):ls=":"
+                        if("1.0" in data["leg"]):ls="-"
+                        plt.plot(np.arange(nmin,nmax,ndv)/nn,hist(data["x"],nn),data["ls"], label="{}-quark".format(data["leg"]),lw=data["lw"],linestyle=ls,alpha=0.5,color=cmap(idx))
+                        plt.plot(np.arange(nmin,nmax,ndv)/nn,hist(data["y"],nn),data["ls"], label="{}-gluon".format(data["leg"]),lw=data["lw"],linestyle=ls,alpha=0.5,color=cmap(idx))
                     else:
                         plt.plot(np.arange(nmin,nmax,ndv)/nn,hist(data["x"],nn),data["ls"], label="{}-{}-{}-quark".format(data["name"],data["rat"],data["test"]),lw=data["lw"],alpha=0.5,color=cmap(idx))
                         plt.plot(np.arange(nmin,nmax,ndv)/nn,hist(data["y"],nn),data["ls"], label="{}-{}-{}-gluon".format(data["name"],data["rat"],data["test"]),lw=data["lw"],linestyle='--',alpha=0.5,color=cmap(idx))
@@ -96,10 +98,9 @@ class CompareROC(object):
         self.data_list.append({"x": x, "y": y, "label": label, "auc": auc(x, y),"col":color})
         
     def get_yj_result(self,name,rat,test,color=None,legend=None):
-        x ,y= open("save/{}{}/{}roc.dat".format(name,rat,test)).readlines()
+        x ,y= open("save/{}/{}roc.dat".format(name,test)).readlines()
         x, y= eval(x), eval(y)
-        try:self.data_list.append({"x": x, "y": y,"name":name,"rat":eval(rat),"test":test, "auc": auc(x, y),"col":color})
-        except:self.data_list.append({"x": x, "y": y,"name":name,"rat":0,"test":test, "auc": auc(x, y),"col":color,"leg":legend})
+        self.data_list.append({"x": x, "y": y,"name":name,"rat":rat,"test":test, "auc": auc(x, y),"col":color,"leg":legend})
     def get_ens_result(self,name,rat,test,color=None,legend=None):
         x ,y= open("ensemble/{}{}{}roc.dat".format(name,rat,test)).readlines()
         x, y= eval(x), eval(y)
@@ -154,37 +155,56 @@ class CompareROC(object):
         plt.grid(True)
         plt.title(title,
                   fontdict={"weight": "bold", "size": 22})
-        plt.xlabel("fraction", fontsize=22)
+        plt.xlabel("pt", fontsize=22)
         plt.ylabel("AUC", fontsize=22)
         plt.tick_params(labelsize=22)
         # data = {"x": sig_eff, "y": bkg_rej, "label": leg_str, "auc": auc_num}
         aucname=[]
         aucdata=[]
         for idx, data in enumerate(self.data_list):
-            if(aucname.count(data["name"]+"-"+data["test"])==0):
-                aucname.append(data["name"]+"-"+data["test"])
-                aucdata.append([[],[],[]])
+            name=""
+            print(data["name"]+data['test'])
+            if('v1' in data["name"]+data['test']):name+="generic-"
+            if('v2' in data["name"]+data['test']):name+="Z+jet-"
+            if('v3' in data["name"]+data['test']):name+="dijet-"
+            if('t2' in data["name"]+data['test']):name+="Z+jet"
+            if('t3' in data["name"]+data['test']):name+="dijet"
+            if('cnn' in data["name"]+data['test']):name+=" CNN"
+            if('rnn' in data["name"]+data['test']):name+=" RNN"
+            print(name)
+
+            if(aucname.count(name)==0):
+                aucname.append(name)
+                aucdata.append([[],[],[],[]])
                 iii=len(aucname)-1
             else:
-                iii=aucname.index(data["name"]+"-"+data["test"])
+                iii=aucname.index(name)
             aucdata[iii][0].append(data["rat"])
             aucdata[iii][1].append(data["auc"])
             aucdata[iii][2]=data["col"]
+            aucdata[iii][3]=name
         print len(aucname)
         cmap = get_cmap(len(aucname))
+        print(aucdata)
+        aucdata=sorted(aucdata,key=lambda x:-x[1][-1])
+
         for i in range(len(aucname)):
-            if(aucdata[i][2]!=None):
-                plt.plot(aucdata[i][0], aucdata[i][1],"-", marker="o",label="{}".format(aucname[i]), lw=3, alpha=0.5,color=aucdata[i][2])
-            else:
-                plt.plot(aucdata[i][0], aucdata[i][1],"-", marker="o",label="{}".format(aucname[i]), lw=3, alpha=0.5,color=cmap(len(aucname)-i-1))
+            color=cmap(len(aucname)-i-1)
+            line="-"
+            if(aucdata[i][2]!=None):color=aucdata[i][2]
+            if("RNN" in aucdata[i][3]): line="--"
+            
+            plt.plot(aucdata[i][0], aucdata[i][1],line, marker="o",label="{}".format(aucdata[i][3]), lw=3, alpha=0.5,color=color)
+            
         a1,a2,b1,b2=plt.axis()
-        plt.xticks(np.arange(0.5,1.1,step=0.05))
-        plt.axis((0.55-0.0225,1.0+0.0225,0.68,0.85))
+        #plt.xticks(np.arange(0.5,1.1,step=0.05))
+        #plt.axis((0.55-0.0225,1.0+0.0225,0.68,0.85))
         print a1,a2, aucdata[0][0]
         #plt.gca().invert_xaxis() 
         #plt.legend(loc="lower left", fontsize=20)
         plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.,fontsize=22)
         #plt.tight_layout()
+        print("filename",filename)
         if filename is not None:
             plt.savefig(filename,bbox_inches='tight',dpi=100)
     def clear_data_list(self):
@@ -196,32 +216,46 @@ def get_cmap(n, name='brg'):
 names=[]
 nalist=[]
 nalabel=[]
-events=["zj","zq","qq"]
-#nets=["cnn"]
-nets=["rnn","cnn"]
-pts=["100","200","500","1000"]
+events=["zj"]
+nets=["cnn"]
+#nets=["rnn","cnn"]
+pts=["1000","500"]
+#pts=["100","200","500","1000"]
 nalist=["Z+j,jj","Z+q,Z+g","qq,gg"]
 #pt=pts[0]
+dlroc = CompareROC()
+#dlout=CompareOUT()
 for pt in pts:
-  dlroc = CompareROC()
+  #dlroc = CompareROC()
   dlout=CompareOUT()
   for event in events:
-    for net in nets:
-      name="paper"+event+net+pt
+    for eta in ["0.0","1.0"]:
+    #for net in nets:
+      net="cnn"
+      name="pep"+event+net+pt+"sgd"
+      if(net=="cnn"):name="pep"+event+net+pt+"model"
+      #print(name)
       if(event=="zj"):
-        dlroc.get_yj_result(name,"","v1t2",legend="Z+j,jj-Z+q,Z+g "+net.upper())
-        dlroc.get_yj_result(name,"","v1t3",legend="Z+j,jj-qq,gg "+net.upper())
-        dlout.get_yj_result(name,"","v1t2",legend="Z+j,jj-Z+q,Z+g "+net.upper())
-        dlout.get_yj_result(name,"","v1t3",legend="Z+j,jj-qq,gg "+net.upper())
+        #dlroc.get_yj_result(name,pt,"v1t2",legend="realistic-Z+jet "+net.upper()+pt)
+        #dlroc.get_yj_result(name,pt,"v1t3",legend="realistic-dijet "+net.upper()+pt)
+        dlout.get_yj_result(name,pt,"etabig{}v1t2".format(eta),legend="{}-Z+jet ".format(eta)+pt)
+        dlout.get_yj_result(name,pt,"etabig{}v1t3".format(eta),legend="{}-dijet ".format(eta)+pt)
       if(event=="zq"):
-        dlroc.get_yj_result(name,"","v2t2",legend="Z+q,Z+g-Z+q,Z+g "+net.upper())
-        dlout.get_yj_result(name,"","v2t2",legend="Z+q,Z+g-Z+q,Z+g "+net.upper())
+        #dlroc.get_yj_result(name,pt,"v2t2",legend="Z+jet-Z+jet "+net.upper()+pt)
+        dlout.get_yj_result(name,pt,"v2t2",legend="Z+jet-Z+jet "+net.upper()+pt)
       if(event=="qq"):
-        dlroc.get_yj_result(name,"","v3t3",legend="qq,gg-qq,gg "+net.upper())
-        dlout.get_yj_result(name,"","v3t3",legend="qq,gg-qq,gg "+net.upper())
+        #dlroc.get_yj_result(name,pt,"v3t3",legend="dijet-dijet "+net.upper()+pt)
+        dlout.get_yj_result(name,pt,"v3t3",legend="dijet-dijet "+net.upper()+pt)
 
-  dlroc.sort_data_list()
-  dlroc.compare_roc("ROC curve",filename="plots/paper"+pt+"mixroc")
-  dlout.compare_out("Output distribution",filename="plots/paper"+pt+"mixout")
-#dlout.compare_out("output dist",filename="plots/zjout")
+  plotname="plots/pepzjeta"+pt
+  #dlroc.compare_roc("ROC curve",filename=plotname+"roc")
+  dlout.compare_out("Output distribution",filename=plotname+"out")
+#dlroc.sort_data_list()
+plotname="plots/pepetaall"
+#plotname="plots/pepzqrnn"
+print(plotname)
+#dlroc.compare_roc("ROC curve",filename=plotname+"roc")
+#dlroc.compare_AUC("ROC curve",filename=plotname+"AUC")
+#dlout.compare_out("Output distribution",filename=plotname+"out")
+
 

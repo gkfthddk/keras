@@ -100,9 +100,9 @@ if(args.isz==0):
 elif(args.isz==1):
   tqdata="Data/zq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
   tgdata="Data/zg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
-  train=wkiter([tqdata,tgdata],batch_size=batch_size,begin=0.5*args.end,end=args.end*1.,istrain=1,rc=rc,onehot=onehot,channel=args.channel,order=args.order)
-  valid1=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=args.end*0.1,rc=rc,onehot=onehot,channel=args.channel,order=args.order)
-  valid3=wkiter([vqqdata,vggdata],batch_size=batch_size,end=512,rc=rc,onehot=onehot,channel=args.channel,order=args.order)
+  #train=wkiter([tqdata,tgdata],batch_size=batch_size,begin=0.5*args.end,end=args.end*1.,istrain=1,rc=rc,onehot=onehot,channel=args.channel,order=args.order)
+  #valid1=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=args.end*0.1,rc=rc,onehot=onehot,channel=args.channel,order=args.order)
+  #valid3=wkiter([vqqdata,vggdata],batch_size=batch_size,end=512,rc=rc,onehot=onehot,channel=args.channel,order=args.order)
 else:
   tqdata="Data/qq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
   tgdata="Data/gg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
@@ -112,7 +112,8 @@ else:
 print("data ",tqdata)
 
 savename='save/'+str(args.save)
-loaded=np.load('aapt{}eta{}.npz'.format(args.pt,str(round(args.etabin,1))))
+if(args.isz):loaded=np.load('aapt{}eta{}isz{}.npz'.format(args.pt,str(round(args.etabin,1)),args.isz))
+else:loaded=np.load('aapt{}eta{}.npz'.format(args.pt,str(round(args.etabin,1))))
 print('aapt{}eta{}.npz'.format(args.pt,str(round(args.etabin,1))))
 #history=AddVal([(next(valid1.next()),"val1")],savename)
 history=AddVal([([loaded['vx'][0],loaded['vy']],"val1")],savename)

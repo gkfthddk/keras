@@ -16,7 +16,7 @@ from aiter import *
 from keras.backend.tensorflow_backend import set_session
 from importlib import import_module
 import matplotlib.pyplot as plt
-plt.switch_backend('agg')
+#plt.switch_backend('agg')
 
 batch_size = 100000
 
@@ -30,7 +30,7 @@ parser.add_argument("--pt",type=int,default=100,help='pt range pt~pt*1.1')
 parser.add_argument("--ptmin",type=float,default=0.,help='pt range pt~pt*1.1')
 parser.add_argument("--ptmax",type=float,default=2.,help='pt range pt~pt*1.1')
 parser.add_argument("--isz",type=int,default=0,help='0 or z or not')
-parser.add_argument("--channel",type=int,default=30,help='sequence channel')
+parser.add_argument("--channel",type=int,default=64,help='sequence channel')
 parser.add_argument("--order",type=int,default=1,help='pt ordering')
 parser.add_argument("--eta",type=float,default=0.,help='end ratio')
 parser.add_argument("--etabin",type=float,default=2.4,help='end ratio')
@@ -68,7 +68,8 @@ savename="save/"+str(args.save)
 history=open(savename+"/history").readlines()
 try:
   hist=eval(history[0])
-  a=hist['val1_auc']
+  #a=hist['val1_auc']
+  a=hist['val1_loss']
 except:
   hist=eval(history[1])
 vzjdata="Data/zj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
@@ -81,7 +82,8 @@ from sklearn.metrics import roc_auc_score, auc, roc_curve
 if(args.isz==0):iii=1
 if(args.isz==1):iii=2
 if(args.isz==-1):iii=3
-if(args.epoch==None):epoch=hist['val{}_auc'.format(iii)].index(max(hist['val{}_auc'.format(iii)]))+1
+#if(args.epoch==None):epoch=hist['val1_auc'.format(iii)].index(max(hist['val1_auc'.format(iii)]))+1
+if(args.epoch==None):epoch=hist['val1_loss'.format(iii)].index(min(hist['val1_loss'.format(iii)]))+1
 else:epoch=args.epoch
 model=keras.models.load_model(savename+"/check_"+str(epoch))
 rc=""
@@ -98,10 +100,10 @@ print ("test   ",entries)
 #epoch=eval(open(savename+"/history").readline())+1
 test2.reset()
 test3.reset()
-if(args.epoch==None):
-  f=rt.TFile("{}/get.root".format(savename),"recreate")
-else:
-  f=rt.TFile("{}/{}get.root".format(savename,args.epoch),"recreate")
+#if(args.epoch==None):
+f=rt.TFile("{}/get.root".format(savename),"recreate")
+#else:
+#  f=rt.TFile("{}/{}get.root".format(savename,args.epoch),"recreate")
 dq=rt.TTree("dq","dq tree")
 dg=rt.TTree("dg","dg tree")
 zq=rt.TTree("zq","zq tree")

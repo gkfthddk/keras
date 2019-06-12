@@ -2,52 +2,48 @@ import numpy as np
 import random
 import ROOT as rt
 import math
+from siter import *
 from array import array
 import matplotlib.pyplot as plt
-#dataname1="data/ppqq_img.root"
-dataname1="../jetdata/ppzj100__img.root"
-dataname2=dataname1
-#dataname2="data/ppgg_img.root"
-qfile=rt.TFile(dataname1,'read')
-gfile=rt.TFile(dataname2,'read')
-qjet=qfile.Get("image")
-gjet=gfile.Get("image")
-qim = array('B', [0]*(3*(33)*(33)))
-gim = array('B', [0]*(3*(33)*(33)))
-qjet.SetBranchAddress("image", qim)
-gjet.SetBranchAddress("image", gim)
-qlabel = array('B', [0])
-glabel = array('B', [0])
-qjet.SetBranchAddress("label", qlabel)
-gjet.SetBranchAddress("label", glabel)
-qEntries=qjet.GetEntriesFast()
-gEntries=gjet.GetEntriesFast()
-
+pt=500
+tdata="sdata/dijet_{0}_{1}/dijet_{0}_{1}_training.root".format(pt,int(pt*1.1))
+train=wkiter([tdata,tdata],batch_size=1024,end=1,rc="rc")
+gen=train.next()
 fig=plt.figure()
-NN=7
+NN=3
+gen.next()
+[data,label]=gen.next()
 #a=np.swapaxes(np.swapaxes(np.array(qim).reshape(3,33,33),0,1),1,2)
 #b=np.swapaxes(np.swapaxes(np.array(gim).reshape(3,33,33),0,1),1,2)
-a=(np.array(qim))
-b=(np.array(gim))
-for i in range(1,NN):
-  num=random.randrange(1,10000)
+i=1
+j=1
+while True:
+  if(i>3 and j>3):break
+  print(i)
+  num=random.randrange(1,1024)
   #num=i
-  qjet.GetEntry(num)
-  img=np.swapaxes(np.swapaxes(np.array(qim).reshape(3,33,33),0,1),1,2)
-  #a+=qim
-  fig.add_subplot(2,NN,i)
-  plt.imshow(img)
-  gjet.GetEntry(num)
-  img=np.swapaxes(np.swapaxes(np.array(gim).reshape(3,33,33),0,1),1,2)
-  #b+=gim
-  fig.add_subplot(2,NN,i+NN)
-  plt.imshow(img)
-#fig.add_subplot(2,NN,NN)
-#fig.add_subplot(2,1,1)
-#plt.imshow(np.swapaxes(np.swapaxes(a.reshape(3,33,33),0,1),1,2)/NN*10)
-#fig.add_subplot(2,NN,NN+NN)
-#fig.add_subplot(2,1,2)
-#plt.imshow(np.swapaxes(np.swapaxes(b.reshape(3,33,33),0,1),1,2)/NN*11)
+  img=np.swapaxes(np.swapaxes(data[1][num],0,1),1,2)
+  if(label[num][0]==0 and i<=3):
+    fig.add_subplot(2,NN,i)
+    plt.imshow(img)
+    i+=1
+  if(label[num][0]==1 and j<=3):
+    fig.add_subplot(2,NN,j+NN)
+    plt.imshow(img)
+    j+=1
+"""img=np.swapaxes(np.swapaxes(data[1][0]/10000,0,1),1,2)
+while True:
+  if(i>10000):break
+  for j in range(1,1024):
+    if(i>10000):break
+    #num=i
+    if(label[j][0]==0):
+      img+=np.swapaxes(np.swapaxes(data[1][j]/10000,0,1),1,2)
+      i+=1
+  [data,label]=gen.next()
+fig.add_subplot(1,1,1)"""
+#fig.add_subplot(2,NN,2)
+plt.imshow(img)
 plt.show()
 """def qdraw(num):
   qjet.GetEntry(num)
