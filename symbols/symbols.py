@@ -3,7 +3,7 @@ from keras.layers import Flatten, Dense, Dropout, Reshape, Concatenate, BatchNor
 from keras.layers import GRU, LSTM, SimpleRNN, Input, Embedding, Lambda, GlobalAveragePooling2D, Softmax, Masking
 from keras.layers import Conv2D, MaxPooling2D, ZeroPadding2D, Conv1D, LocallyConnected1D, LocallyConnected2D
 from keras.optimizers import SGD
-import cv2, numpy as np
+import numpy as np
 
 input_shape1=(10,33,33)
 input_shape2=(20,9)
@@ -23,12 +23,12 @@ rnn60={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp(input_shape60)-M0=ba
 rnn66={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp(input_shape60)-M0=Masking(mask_value=0.)(in0)-gru(M0,256,0.1,0)-ba(M0)-dn(M0,256)-dr(M0)-dn(M0,256)-dr(M0)-out(M0)"}
 rnn00={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((None,9))-M0=Masking(mask_value=0.)(in0)-gru(M0,512,0.1,0)-out(M0)"}
 rnn01={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((None,9))-M0=Masking(mask_value=0.)(in0)-gru(M0,256,0.1,0)-dn(M0,256)-dr(M0)-out(M0)"}
-rnn02={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((None,9))-M0=Masking(mask_value=0.)(in0)-gru(M0,512,0.5,0)-dn(M0,256)-dr(M0)-out(M0)"}
 rnn10={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((None,9))-M0=Masking(mask_value=0.)(in0)-gru(M0,256,0.1,0)-ba(M0)-dn(M0,256)-out(M0)"}
 rnn11={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((None,9))-M0=Masking(mask_value=0.)(in0)-gru(M0,256,0.1,0)-ba(M0)-dn(M0,256)-dn(M0,256)-out(M0)"}
 rnn20={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((None,9))-M0=Masking(mask_value=0.)(in0)-gru(M0,512,0.1,0)-ba(M0)-dn(M0,256)-out(M0)"}
-rnn21={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((None,9))-M0=Masking(mask_value=0.)(in0)-gru(M0,512,0.1,0)-ba(M0)-dn(M0,256)-dn(M0,256)-out(M0)"}
+rnn21={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((None,9))-M0=Masking(mask_value=0.)(in0)-gru(M0,512,0.1,0)-ba(M0)-dn(M0,256)-ba(M0)-dn(M0,256)-out(M0)"}
 rnn30={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((None,9))-M0=Masking(mask_value=0.)(in0)-gru(M0,256,0.,1)-ba(M0)-gru(M0,256,0.,0)-ba(M0)-dn(M0,256)-ba(M0)-out(M0)"}
+rnn02={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((None,9))-M0=Masking(mask_value=0.)(in0)-gru(M0,512,0.,0)-ba(M0)-dn(M0,256)-ba(M0)-out(M0)"}
 rnn31={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((None,9))-M0=Masking(mask_value=0.)(in0)-gru(M0,512,0.,1)-ba(M0)-gru(M0,512,0.,0)-ba(M0)-dn(M0,256)-ba(M0)-out(M0)"}
 rnn33={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((None,9))-M0=Masking(mask_value=0.)(in0)-gru(M0,64,0.,1)-ba(M0)-gru(M0,128,0.,1)-ba(M0)-gru(M0,64,0.,1)-ba(M0)-gru(M0,16,0.,0)-out(M0)"}
 rnn34={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((None,9))-M0=Masking(mask_value=0.)(in0)-gru(M0,64,0.,1)-ba(M0)-gru(M0,128,0.,1)-ba(M0)-gru(M0,64,0.,0)-ba(M0)-dn(M0,16)-out(M0)"}
@@ -37,6 +37,7 @@ rnnv11={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((None,9))-M0=gru(in
 rnnv20={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((None,9))-M0=gru(in0,512,0.1,0)-ba(M0)-dn(M0,256)-dr(M0)-out(M0)"}
 rnnv21={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((None,9))-M0=gru(in0,512,0.1,0)-ba(M0)-dn(M0,256)-dr(M0)-dn(M0,256)-dr(M0)-out(M0)"}
 rnn2={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp(input_shape2)-M0=cv1(in0,64,1)-LeakyReLU(0.3)(M0)-gru(M0,512,0.2,0)-dn(M0,256)-dr(M0)-dn(M0,256)-dr(M0)-out(M0)"}
+rnn22={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((64,9))-M0=cv1(in0,64,1)-ba(M0)-gru(M0,256,0,0)-dn(M0,256)-dr(M0)-dn(M0,256)-dr(M0)-out(M0)"}
 ernn={"rc":"r","onehot":1,"num_input":1,"network":"in0=inp(input_shape3)-M0=emb(in0)-cv1(M0,32,1)-LeakyReLU(0.3)(M0)-gru(M0,256,0.2,1)-Flatten()(M0)-ba(M0)-dn(M0,512)-dr(M0)-dn(M0,512)-dr(M0)-out(M0)"}
 #worse with : no leakyrelu
 cnn={"rc":"c","onehot":0,"num_input":1,"network":"in0=inp(input_shape1)-M0=pad(in0)-cv2(M0,32)-pool(M0)-cv2(M0,64)-pool(M0)-Flatten()(M0)-dn(M0,128)-dn(M0,128)-dr(M0)-out(M0)"}
