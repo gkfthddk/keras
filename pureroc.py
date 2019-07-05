@@ -55,7 +55,6 @@ if(args.gaus):
   lgaus=[jgaus,zgaus]
   #try:
 names=["asubdt{}pteta".format(pt),"asuzjcnn{}pt".format(pt),"asuzjrnn{}pteta21".format(pt)]
-#names=["asubdt{}ptonly".format(pt),"asuzjcnn{}ptonly3".format(pt),"asuzjrnn{}ptonly21".format(pt)]
 plt.figure(figsize=(12, 8))
 plt.xlabel("Quark Jet Efficiency", fontsize=fs*1.2)
 plt.ylabel("Gluon Jet Rejection", fontsize=fs*1.2)

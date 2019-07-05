@@ -2,10 +2,10 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-nl=['asuzqcnn{}ptonlyptcut','asuqqcnn{}ptonlyptcut','asuzjcnn{}ptonly3ptcut','asuzjcnn{}ptonly3ptcut']
-#nl=['asuzqcnn{}ptetaptcut','asuqqcnn{}ptetaptcut','asuzjcnn{}ptptcut','asuzjcnn{}ptptcut']
+#nl=['asuzqcnn{}ptonlyptcut','asuqqcnn{}ptonlyptcut','asuzjcnn{}ptonly3ptcut','asuzjcnn{}ptonly3ptcut']
+nl=['asuzqcnn{}ptetaptcut','asuqqcnn{}ptetaptcut','asuzjcnn{}ptptcut','asuzjcnn{}ptptcut']
 
-name="purept"
+name="purepteta"
 
 ne=["Z+jet","dijet","Z+jet","dijet"]
 #event=["Z+jet"]

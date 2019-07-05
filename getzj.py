@@ -7,7 +7,6 @@ from xiter import *
 import argparse
 import matplotlib.pyplot as plt
 
-data=pd.read_csv('xgb/random-search.csv')
 
 parser=argparse.ArgumentParser()
 parser.add_argument("--end",type=float,default=100000.,help='end ratio')
@@ -42,42 +41,36 @@ if(args.isz==1):iii=2
 if(args.isz==-1):iii=3
 rc=""
 onehot=0
-if(args.isz==0):
-  tqdata="Data/zj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
-  tgdata="Data/jj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
-  train=wkiter([tqdata,tgdata],batch_size=batch_size,end=args.end*0.7,istrain=1,rc=rc,onehot=onehot,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
+#if(args.isz==0):
+tqdata="Data/zj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+tgdata="Data/jj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+  #train=wkiter([tqdata,tgdata],batch_size=batch_size,end=args.end*0.7,istrain=1,rc=rc,onehot=onehot,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
 test2=wkiter([vzqdata,vzgdata],batch_size=batch_size,begin=args.end*0.2,end=args.end*0.6,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=0,etabin=2.4)
 test3=wkiter([vqqdata,vggdata],batch_size=batch_size,begin=args.end*0.2,end=args.end*0.6,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=0,etabin=2.4)
 entries=test2.totalnum()
 print ("test   ",entries)
 print(args.pt)
-gen=train.next()
-#epoch=eval(open(savename+"/history").readline())+1
-X,Y=next(gen)
-Y=np.array(Y)[:,0]
-X=np.array(X[0])
+#gen=train.next()
+#X,Y=next(gen)
+#Y=np.array(Y)[:,0]
+#X=np.array(X[0])
 test2.reset()
 test3.reset()
-#genz=test2.next()
-#genq=test3.next()
-#xz,yz=next(genz)
-#xq,yq=next(genq)
-#xz=np.array(xz[0])
-#xq=np.array(xq[0])
-#yz=np.array(yz[:,0])
-#yq=np.array(yq[:,0])
-csv=pd.read_csv("xgb/{}-{}.csv".format(args.save,args.pt))
-#csv=pd.read_csv(args.save)
-best=csv.loc[csv["mean_test_score"].idxmax()]
-model=xgb.XGBClassifier(objective='binary:logistic',tree_method="gpu_exact",**best)
-#model=pickle.load(open("xgb/bdt100pickle-{}.dat".format(args.pt)))
-model.fit(X,Y,eval_metric="auc")
-
-py=[]
-py.append(model.predict_proba(test3.qjetset)[:,1])
-py.append(model.predict_proba(test2.qjetset)[:,1])
-py.append(model.predict_proba(test3.gjetset)[:,1])
-py.append(model.predict_proba(test2.gjetset)[:,1])
+savename="save/"+str(args.save)
+if(args.isz==1):
+  f1=rt.TFile("{}/get.root".format(savename.format("zq")),"read")
+  f2=rt.TFile("{}/get.root".format(savename.format("qq")),"read")
+  dq=f2.Get("dq")
+  dg=f2.Get("dg")
+  zq=f1.Get("zq")
+  zg=f1.Get("zg")
+else:
+  f=rt.TFile("{}/get.root".format(savename),"read")
+  dq=f.Get("dq")
+  dg=f.Get("dg")
+  zq=f.Get("zq")
+  zg=f.Get("zg")
+tree=[dq,zq,dg,zg]
 jetset=[[],[],[],[]]
 jetset[0].append(test3.qptset)
 jetset[0].append(test3.qetaset)
@@ -124,9 +117,15 @@ for i in range(len(varss)):
 
 
   for j in range(4):
-    for k in range(len(py[j])):
-      hists[j].Fill(jetset[j][i][k],py[j][k])
-    hists[j].Scale(1./len(py[j]))
+    count=0
+    for k in range(tree[j].GetEntries()):
+      tree[j].GetEntry(k)
+      if(tree[j].pt!=jetset[j][0][k+count]):
+        count+=1
+      if(tree[j].pt!=jetset[j][0][k+count]):
+        count+=1
+      hists[j].Fill(jetset[j][i][k+count],tree[j].p)
+    hists[j].Scale(1./(tree[j].GetEntries()))
     canv.cd(j+1)
     hists[j].Draw('colz')
   canv.SaveAs("plots/{}pred{}_{}.png".format(args.save,args.pt,varss[i]))

@@ -4,7 +4,7 @@ import copy
 import ROOT as rt
 pts=[100,200,500,1000]
 events=['jj','qq','gg','qg','zj','zq','zg']
-cut="pt>{} && pt < {}"# && eta<1 && eta > -1"
+cut="pt>{} && pt < {} && eta<1 && eta > -1"
 fs=25
 #f=open("etacrosssection")
 f=open("effectivecrosssection")
@@ -80,9 +80,10 @@ plt.xticks([105,210,525,1050],["100\n~110","200\n~220","500\n~550","1000\n~1100"
 a1,a2,b1,b2=plt.axis()
 plt.axis((a1,a2,0,1))
 plt.yticks(size=fs)
+print(zfr-dfr)
 #plt.yticks([100*0.05,100*0.06,100*0.07,100*0.08,100*0.09,100*0.10],size=fs)
 plt.grid(alpha=0.6)
 plt.legend(fontsize=fs,loc=4)
-plt.savefig("ptfraction.pdf",bbox_inches='tight',pad_inches=0.5,dpi=300)
-plt.savefig("ptfraction.png",bbox_inches='tight',pad_inches=0.5,dpi=300)
+plt.savefig("ptetafraction.pdf",bbox_inches='tight',pad_inches=0.5,dpi=300)
+plt.savefig("ptetafraction.png",bbox_inches='tight',pad_inches=0.5,dpi=300)
 plt.show()

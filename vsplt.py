@@ -146,6 +146,7 @@ class BinaryClassifierResponse(object):
         else:
           if("chad" in var):plt.xlabel("Charged particle multiplicity",fontsize=fs*1.)
           elif("ptd" in var):plt.xlabel("jet $p_TD$",fontsize=fs*1.3)
+          elif("axis" in var):plt.xlabel("jet {}".format(var),fontsize=fs*1.3)
           else:plt.xlabel("jet $p_T$(GeV)",fontsize=fs*1.3)
           plt.fill_between(np.arange(0,dqhist.GetBinLowEdge(res)+1,(dqhist.GetBinLowEdge(res)/res))[:res],dq,alpha=0.6,linewidth=2,facecolor='azure',edgecolor='C0',label=r"pp$\rightarrow$qq",step='pre')
           plt.plot(np.arange(0,dqhist.GetBinLowEdge(res)+1,(dqhist.GetBinLowEdge(res)/res))[:res],dq,color='C0',alpha=0.5,drawstyle='steps',linewidth=2)
@@ -166,9 +167,9 @@ class BinaryClassifierResponse(object):
 
 #pts=[100]
 #pts=[100,200,500,1000]
-#pts=[200,500]
-pts=[100,1000]
-varl=["eta","pt","ptd","chad_mult"]
+pts=[100,200,500,1000]
+#pts=[100,1000]
+varl=["eta","pt","ptd","major_axis","chad_mult"]
 #varl=["chad_mult"]
 for pt in pts:
   for var in varl:
