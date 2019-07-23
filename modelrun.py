@@ -11,6 +11,7 @@ parser.add_argument("--end",type=float,default=1.,help='end ratio')
 parser.add_argument("--save",type=str,default="test_",help='save name')
 parser.add_argument("--network",type=str,default="rnn",help='network name on symbols/')
 parser.add_argument("--right",type=str,default="/scratch/yjdata/gluon100_img",help='which train sample (qq,gg,zq,zg)')
+parser.add_argument("--opt",type=str,default="rms",help='optimizer sgd rms adam')
 parser.add_argument("--pt",type=int,default=200,help='pt range pt~pt*1.1')
 parser.add_argument("--ptmin",type=float,default=0.,help='pt range pt~pt*1.1')
 parser.add_argument("--ptmax",type=float,default=2.,help='pt range pt~pt*1.1')
@@ -21,6 +22,8 @@ parser.add_argument("--gpu",type=int,default=0,help='gpu number')
 parser.add_argument("--isz",type=int,default=0,help='0 or z or not')
 parser.add_argument("--eta",type=float,default=0.,help='end ratio')
 parser.add_argument("--etabin",type=float,default=2.4,help='end ratio')
+parser.add_argument("--unscale",type=int,default=1,help='end ratio')
+parser.add_argument("--normb",type=float,default=10.,help='end ratio')
 args=parser.parse_args()
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
@@ -70,8 +73,14 @@ for sha in model._feed_inputs:
     rc+="r"
 print("rc",rc)
 #model.compile(loss='mean_squared_error',
+if(args.opt=="sgd"):
+  opt=keras.optimizers.SGD()
+if(args.opt=="rms"):
+  opt=keras.optimizers.RMSprop()
+if(args.opt=="adam"):
+  opt=keras.optimizers.Adam()
 model.compile(loss=args.loss,
-              optimizer=keras.optimizers.RMSprop(),
+              optimizer=opt,
 	      metrics=['accuracy'])
 """model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.SGD(),
@@ -90,24 +99,24 @@ vggdata="Data/gg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
 if(args.isz==0):
   tqdata="Data/zj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
   tgdata="Data/jj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
-  train=wkiter([tqdata,tgdata],batch_size=batch_size,end=args.end*0.7,istrain=1,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
-  valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.8*args.end,end=args.end*1.,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
+  train=wkiter([tqdata,tgdata],batch_size=batch_size,end=args.end*0.7,istrain=1,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax,unscale=args.unscale,normb=args.normb)
+  valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.8*args.end,end=args.end*1.,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax,unscale=args.unscale,normb=args.normb)
   #valid2=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=2048,rc=rc,onehot=onehot)
   #valid3=wkiter([vqqdata,vggdata],batch_size=batch_size,end=2048,rc=rc,onehot=onehot)
 elif(args.isz==1):
   tqdata="Data/zq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
   tgdata="Data/zg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
-  train=wkiter([tqdata,tgdata],batch_size=batch_size,begin=0.6*args.end,end=args.end*1.,istrain=1,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
+  train=wkiter([tqdata,tgdata],batch_size=batch_size,begin=0.6*args.end,end=args.end*1.,istrain=1,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax,unscale=args.unscale,normb=args.normb)
   #valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.7*args.end,end=args.end*0.7+512,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
-  valid1=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=args.end*0.2,rc=rc,onehot=onehot)
+  valid1=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=args.end*0.2,rc=rc,onehot=onehot,unscale=args.unscale,normb=args.normb)
   #valid3=wkiter([vqqdata,vggdata],batch_size=batch_size,end=512,rc=rc,onehot=onehot)
 else:
   tqdata="Data/qq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
   tgdata="Data/gg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
-  train=wkiter([tqdata,tgdata],batch_size=batch_size,begin=0.6*args.end,end=args.end*1.,istrain=1,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
+  train=wkiter([tqdata,tgdata],batch_size=batch_size,begin=0.6*args.end,end=args.end*1.,istrain=1,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax,unscale=args.unscale,normb=args.normb)
   #valid1=wkiter([vzjdata,vjjdata],batch_size=batch_size,begin=0.7*args.end,end=args.end*0.7+512,rc=rc,onehot=onehot,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
   #valid2=wkiter([vzqdata,vzgdata],batch_size=batch_size,end=512,rc=rc,onehot=onehot)
-  valid1=wkiter([vqqdata,vggdata],batch_size=batch_size,end=args.end*0.2,rc=rc,onehot=onehot)
+  valid1=wkiter([vqqdata,vggdata],batch_size=batch_size,end=args.end*0.2,rc=rc,onehot=onehot,unscale=args.unscale,normb=args.normb)
 print("data ",tqdata)
 
 savename='save/'+str(args.save)
@@ -132,14 +141,14 @@ model.fit(X,Y,batch_size=512,epochs=epochs,verbose=1,callbacks=[checkpoint,histo
 
 print(history)
 f=open(savename+'/history','w')
-"""try:
-  one=history.history['val1_auc'].index(max(history.history['val1_auc']))
+try:
+  one=history.history['val1_loss'].index(min(history.history['val1_loss']))
   f.write(str(one)+'\n')
   print(one)
   for i in range(epochs):
     if(i!=one):os.system("rm "+savename+"/check_"+str(i+1))
 except:
-  print("failed to drop")"""
+  print("failed to drop")
 f.write(str(history.history))
 f.close()
 print (datetime.datetime.now()-start)

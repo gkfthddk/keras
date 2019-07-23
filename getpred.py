@@ -34,6 +34,8 @@ parser.add_argument("--channel",type=int,default=64,help='sequence channel')
 parser.add_argument("--order",type=int,default=1,help='pt ordering')
 parser.add_argument("--eta",type=float,default=0.,help='end ratio')
 parser.add_argument("--etabin",type=float,default=2.4,help='end ratio')
+parser.add_argument("--unscale",type=int,default=0,help='end ratio')
+parser.add_argument("--normb",type=float,default=10.,help='end ratio')
 
 args=parser.parse_args()
 
@@ -71,6 +73,7 @@ try:
   #a=hist['val1_auc']
   a=hist['val1_loss']
 except:
+  sepoch=eval(history[0])
   hist=eval(history[1])
 vzjdata="Data/zj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
 vjjdata="Data/jj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
@@ -85,7 +88,12 @@ if(args.isz==-1):iii=3
 #if(args.epoch==None):epoch=hist['val1_auc'.format(iii)].index(max(hist['val1_auc'.format(iii)]))+1
 if(args.epoch==None):epoch=hist['val1_loss'.format(iii)].index(min(hist['val1_loss'.format(iii)]))+1
 else:epoch=args.epoch
-model=keras.models.load_model(savename+"/check_"+str(epoch))
+try:
+  epoch=hist['val1_loss'.format(iii)].index(min(hist['val1_loss'.format(iii)]))+1
+  model=keras.models.load_model(savename+"/check_"+str(epoch))
+except:
+  epoch=sepoch+1
+  model=keras.models.load_model(savename+"/check_"+str(epoch))
 rc=""
 for sha in model._feed_inputs:
   if(len(sha._keras_shape)==4):
@@ -93,8 +101,8 @@ for sha in model._feed_inputs:
   if(len(sha._keras_shape)==3):
     rc+="r"
 onehot=0
-test2=wkiter([vzqdata,vzgdata],batch_size=batch_size,begin=args.end*0.2,end=args.end*0.6,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
-test3=wkiter([vqqdata,vggdata],batch_size=batch_size,begin=args.end*0.2,end=args.end*0.6,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
+test2=wkiter([vzqdata,vzgdata],batch_size=batch_size,begin=0.*args.end,end=0.4*args.end,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax,unscale=args.unscale,normb=args.normb)
+test3=wkiter([vqqdata,vggdata],batch_size=batch_size,begin=0.*args.end,end=0.4*args.end,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=args.eta,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax,unscale=args.unscale,normb=args.normb)
 entries=test2.totalnum()
 print ("test   ",entries)
 #epoch=eval(open(savename+"/history").readline())+1
@@ -111,18 +119,23 @@ zg=rt.TTree("zg","zg tree")
 p=array('f',[0.])
 pt=array('f',[0.])
 eta=array('f',[0.])
+pid=array('f',[0.])
 dq.Branch("p",p,"p/F")
 dq.Branch("pt",pt,"pt/F")
 dq.Branch("eta",eta,"eta/F")
+dq.Branch("pid",pid,"pid/F")
 dg.Branch("p",p,"p/F")
 dg.Branch("pt",pt,"pt/F")
 dg.Branch("eta",eta,"eta/F")
+dg.Branch("pid",pid,"pid/F")
 zq.Branch("p",p,"p/F")
 zq.Branch("pt",pt,"pt/F")
 zq.Branch("eta",eta,"eta/F")
+zq.Branch("pid",pid,"pid/F")
 zg.Branch("p",p,"p/F")
 zg.Branch("pt",pt,"pt/F")
 zg.Branch("eta",eta,"eta/F")
+zg.Branch("pid",pid,"pid/F")
 for jj in range(0,2):
   ii=jj+2
   if(ii==2):
@@ -141,20 +154,24 @@ for jj in range(0,2):
     bp=model.predict(gen.gjetset,verbose=0)[:,0]
     bpt=gen.gptset
     beta=gen.getaset
+    bpid=gen.gpidset
     for i in range(len(bp)):
       p[0]=bp[i]
       pt[0]=bpt[i]
       eta[0]=beta[i]
+      pid[0]=bpid[i]
       if(jj==0):zg.Fill()
       if(jj==1):dg.Fill()
 
     bp=model.predict(gen.qjetset,verbose=0)[:,0]
     bpt=gen.qptset
     beta=gen.qetaset
+    bpid=gen.qpidset
     for i in range(len(bp)):
       p[0]=bp[i]
       pt[0]=bpt[i]
       eta[0]=beta[i]
+      pid[0]=bpid[i]
       if(jj==0):zq.Fill()
       if(jj==1):dq.Fill()
 

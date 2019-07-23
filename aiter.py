@@ -67,7 +67,7 @@ class AddVal(Callback):
 
       auc_val=roc_auc_score(atar_set,apre_set)
       results=self.model.evaluate(X,Y)
-      print(results,auc_val)
+      print("validation",results,auc_val)
 
       self.history.setdefault(val_name+"_auc",[]).append(auc_val)
 
@@ -82,7 +82,7 @@ class AddVal(Callback):
     f.close()
 
 class wkiter(object):
-  def __init__(self,data_path,data_names=['data'],label_names=['softmax_label'],batch_size=100,begin=0.0,end=1.0,rat=0.7,endcut=1,arnum=16,maxx=0.4,maxy=0.4,istrain=0, varbs=0,rc="rc",onehot=0,channel=64,order=1,eta=0.,etabin=2.4,pt=None,ptmin=0.,ptmax=2.):
+  def __init__(self,data_path,data_names=['data'],label_names=['softmax_label'],batch_size=100,begin=0.0,end=1.0,rat=0.7,endcut=1,arnum=16,maxx=0.4,maxy=0.4,istrain=0, varbs=0,rc="rc",onehot=0,channel=64,order=1,eta=0.,etabin=2.4,pt=None,ptmin=0.,ptmax=2.,unscale=0,normb=10):
     self.eta=eta
     self.pt=pt
     self.ptmin=ptmin
@@ -90,6 +90,8 @@ class wkiter(object):
     self.etabin=etabin
     self.channel=channel
     self.istrain=istrain
+    self.unscale=unscale
+    self.normb=normb*1.
     #if(batch_size<100):
     self.rand=0.5
     #  print("batch_size is small it might cause error")
@@ -146,11 +148,13 @@ class wkiter(object):
     gptset=[]
     qetaset=[]
     getaset=[]
+    qpidset=[]
+    gpidset=[]
     for i in range(self.gEntries):
       if(self.a>=self.gEnd):
         self.a=self.gBegin
         break
-      #if((self.a-self.gBegin)%int((self.gEnd-self.gBegin)/10)==0):print('.')
+      #if((self.a-self.gBegin)%int((self.gEnd-self.gBegin)/self.normb==0):print('.')
       self.gjet.GetEntry(self.a)
       ##label q=1 g=0
       self.a+=1
@@ -161,8 +165,29 @@ class wkiter(object):
           continue
       gptset.append(self.gjet.pt)
       getaset.append(self.gjet.eta)
+      gpidset.append(self.gjet.parton_id)
       if("c" in self.rc):
-        gjetset.append([np.array(self.gjet.image_chad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_nhad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_electron_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_muon_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_photon_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_chad_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_nhad_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_electron_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_muon_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.gjet.image_photon_mult_33).reshape(2*arnum+1,2*arnum+1)])
+        maxchadpt=1.*max(self.gjet.image_chad_pt_33)/self.normb
+        maxnhadpt=1.*max(self.gjet.image_nhad_pt_33)/self.normb
+        maxelecpt=1.*max(self.gjet.image_electron_pt_33)/self.normb
+        maxmuonpt=1.*max(self.gjet.image_muon_pt_33)/self.normb
+        maxphotonpt=1.*max(self.gjet.image_photon_pt_33)/self.normb
+        maxchadmult=1.*max(self.gjet.image_chad_mult_33)/self.normb
+        maxnhadmult=1.*max(self.gjet.image_nhad_mult_33)/self.normb
+        maxelecmult=1.*max(self.gjet.image_electron_mult_33)/self.normb
+        maxmuonmult=1.*max(self.gjet.image_muon_mult_33)/self.normb
+        maxphotonmult=1.*max(self.gjet.image_photon_mult_33)/self.normb
+        if(self.unscale==1 or maxchadpt==0):maxchadpt=1.
+        if(self.unscale==1 or maxnhadpt==0):maxnhadpt=1.
+        if(self.unscale==1 or maxelecpt==0):maxelecpt=1.
+        if(self.unscale==1 or maxmuonpt==0):maxmuonpt=1.
+        if(self.unscale==1 or maxphotonpt==0):maxphotonpt=1.
+        if(self.unscale==1 or maxchadmult==0):maxchadmult=1.
+        if(self.unscale==1 or maxnhadmult==0):maxnhadmult=1.
+        if(self.unscale==1 or maxelecmult==0):maxelecmult=1.
+        if(self.unscale==1 or maxmuonmult==0):maxmuonmult=1.
+        if(self.unscale==1 or maxphotonmult==0):maxphotonmult=1.
+        gjetset.append([(np.array(self.gjet.image_chad_pt_33)/maxchadpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.gjet.image_nhad_pt_33)/maxnhadpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.gjet.image_electron_pt_33)/maxelecpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.gjet.image_muon_pt_33)/maxmuonpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.gjet.image_photon_pt_33)/maxphotonpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.gjet.image_chad_mult_33)/maxchadmult).reshape(2*arnum+1,2*arnum+1),(np.array(self.gjet.image_nhad_mult_33)/maxnhadmult).reshape(2*arnum+1,2*arnum+1),(np.array(self.gjet.image_electron_mult_33)/maxelecmult).reshape(2*arnum+1,2*arnum+1),(np.array(self.gjet.image_muon_mult_33)/maxmuonmult).reshape(2*arnum+1,2*arnum+1),(np.array(self.gjet.image_photon_mult_33)/maxphotonmult).reshape(2*arnum+1,2*arnum+1)])
       if("r" in self.rc):
         dau_pt=self.gjet.dau_pt
         dau_deta=self.gjet.dau_deta
@@ -182,7 +207,25 @@ class wkiter(object):
           else:dau_is_chad[t]=1.
         dausort=sorted(range(len(dau_pt)),key=lambda k: dau_pt[k],reverse=True)
         if(self.order):
-          gjetset.append([[dau_pt[dausort[i]], dau_deta[dausort[i]], dau_dphi[dausort[i]], dau_charge[dausort[i]], dau_is_e[dausort[i]], dau_is_mu[dausort[i]], dau_is_r[dausort[i]], dau_is_chad[dausort[i]], dau_is_nhad[dausort[i]]] if len(dau_pt)>i else [0.,0.,0.,0.,0.,0.,0.,0.,0.] for i in range(self.channel)])
+          maxdaupt=1.*max(dau_pt)/self.normb
+          maxdaudeta=1.*max(dau_deta)/self.normb
+          maxdaudphi=1.*max(dau_dphi)/self.normb
+          maxdaucharge=1.*max(dau_charge)/self.normb
+          maxdauc=1.*max(dau_is_chad)/self.normb
+          maxdaun=1.*max(dau_is_nhad)/self.normb
+          maxdaue=1.*max(dau_is_e)/self.normb
+          maxdaum=1.*max(dau_is_mu)/self.normb
+          maxdaup=1.*max(dau_is_r)/self.normb
+          if(self.unscale==1 or maxdaupt==0):maxdaupt=1.
+          if(self.unscale==1 or maxdaudeta==0):maxdaudeta=1.
+          if(self.unscale==1 or maxdaudphi==0):maxdaudphi=1.
+          if(self.unscale==1 or maxdaucharge==0):maxdaucharge=1.
+          if(self.unscale==1 or maxdauc==0):maxdauc=1.
+          if(self.unscale==1 or maxdaun==0):maxdaun=1.
+          if(self.unscale==1 or maxdaue==0):maxdaue=1.
+          if(self.unscale==1 or maxdaum==0):maxdaum=1.
+          if(self.unscale==1 or maxdaup==0):maxdaup=1.
+          gjetset.append([[dau_pt[dausort[i]]/maxdaupt, dau_deta[dausort[i]]/maxdaudeta, dau_dphi[dausort[i]]/maxdaudphi, dau_charge[dausort[i]]/maxdaucharge, dau_is_e[dausort[i]]/maxdaue, dau_is_mu[dausort[i]]/maxdaum, dau_is_r[dausort[i]]/maxdaup, dau_is_chad[dausort[i]]/maxdauc, dau_is_nhad[dausort[i]]/maxdaun] if len(dau_pt)>i else [0.,0.,0.,0.,0.,0.,0.,0.,0.] for i in range(self.channel)])
         
     self.gjetset=np.array(gjetset)
     del gjetset
@@ -190,11 +233,13 @@ class wkiter(object):
     del gptset
     self.getaset=np.array(getaset)
     del getaset
+    self.gpidset=np.array(gpidset)
+    del gpidset
     for i in range(self.qEntries):
       if(self.b>=self.qEnd):
         self.b=self.qBegin
         break
-      #if((self.b-self.qBegin)%int((self.qEnd-self.qBegin)/10)==0):print(',')
+      #if((self.b-self.qBegin)%int((self.qEnd-self.qBegin)/self.normb==0):print(',')
       self.qjet.GetEntry(self.b)
       ##label q=1 g=0
       self.b+=1
@@ -205,8 +250,29 @@ class wkiter(object):
           continue
       qptset.append(self.qjet.pt)
       qetaset.append(self.qjet.eta)
+      qpidset.append(self.qjet.parton_id)
       if("c" in self.rc):
-        qjetset.append([np.array(self.qjet.image_chad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_nhad_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_electron_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_muon_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_photon_pt_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_chad_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_nhad_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_electron_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_muon_mult_33).reshape(2*arnum+1,2*arnum+1),np.array(self.qjet.image_photon_mult_33).reshape(2*arnum+1,2*arnum+1)])
+        maxchadpt=1.*max(self.qjet.image_chad_pt_33)/self.normb
+        maxnhadpt=1.*max(self.qjet.image_nhad_pt_33)/self.normb
+        maxelecpt=1.*max(self.qjet.image_electron_pt_33)/self.normb
+        maxmuonpt=1.*max(self.qjet.image_muon_pt_33)/self.normb
+        maxphotonpt=1.*max(self.qjet.image_photon_pt_33)/self.normb
+        maxchadmult=1.*max(self.qjet.image_chad_mult_33)/self.normb
+        maxnhadmult=1.*max(self.qjet.image_nhad_mult_33)/self.normb
+        maxelecmult=1.*max(self.qjet.image_electron_mult_33)/self.normb
+        maxmuonmult=1.*max(self.qjet.image_muon_mult_33)/self.normb
+        maxphotonmult=1.*max(self.qjet.image_photon_mult_33)/self.normb
+        if(self.unscale==1 or maxchadpt==0):maxchadpt=1.
+        if(self.unscale==1 or maxnhadpt==0):maxnhadpt=1.
+        if(self.unscale==1 or maxelecpt==0):maxelecpt=1.
+        if(self.unscale==1 or maxmuonpt==0):maxmuonpt=1.
+        if(self.unscale==1 or maxphotonpt==0):maxphotonpt=1.
+        if(self.unscale==1 or maxchadmult==0):maxchadmult=1.
+        if(self.unscale==1 or maxnhadmult==0):maxnhadmult=1.
+        if(self.unscale==1 or maxelecmult==0):maxelecmult=1.
+        if(self.unscale==1 or maxmuonmult==0):maxmuonmult=1.
+        if(self.unscale==1 or maxphotonmult==0):maxphotonmult=1.
+        qjetset.append([(np.array(self.qjet.image_chad_pt_33)/maxchadpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_nhad_pt_33)/maxnhadpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_electron_pt_33)/maxelecpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_muon_pt_33)/maxmuonpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_photon_pt_33)/maxphotonpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_chad_mult_33)/maxchadmult).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_nhad_mult_33)/maxnhadmult).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_electron_mult_33)/maxelecmult).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_muon_mult_33)/maxmuonmult).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_photon_mult_33)/maxphotonmult).reshape(2*arnum+1,2*arnum+1)])
       if("r" in self.rc):
         dau_pt=self.qjet.dau_pt
         dau_deta=self.qjet.dau_deta
@@ -227,13 +293,33 @@ class wkiter(object):
         dausort=sorted(range(len(dau_pt)),key=lambda k: dau_pt[k],reverse=True)
         #dauset.append([[dau_pt[dausort[i]], dau_deta[dausort[i]], dau_dphi[dausort[i]], dau_charge[dausort[i]]] if len(dau_pt)>i else [0.,0.,0.,0.] for i in range(20)])
         if(self.order):
-          qjetset.append([[dau_pt[dausort[i]], dau_deta[dausort[i]], dau_dphi[dausort[i]], dau_charge[dausort[i]], dau_is_e[dausort[i]], dau_is_mu[dausort[i]], dau_is_r[dausort[i]], dau_is_chad[dausort[i]], dau_is_nhad[dausort[i]]] if len(dau_pt)>i else [0.,0.,0.,0.,0.,0.,0.,0.,0.] for i in range(self.channel)])
+          maxdaupt=1.*max(dau_pt)/self.normb
+          maxdaudeta=1.*max(dau_deta)/self.normb
+          maxdaudphi=1.*max(dau_dphi)/self.normb
+          maxdaucharge=1.*max(dau_charge)/self.normb
+          maxdauc=1.*max(dau_is_chad)/self.normb
+          maxdaun=1.*max(dau_is_nhad)/self.normb
+          maxdaue=1.*max(dau_is_e)/self.normb
+          maxdaum=1.*max(dau_is_mu)/self.normb
+          maxdaup=1.*max(dau_is_r)/self.normb
+          if(self.unscale==1 or maxdaupt==0):maxdaupt=1.
+          if(self.unscale==1 or maxdaudeta==0):maxdaudeta=1.
+          if(self.unscale==1 or maxdaudphi==0):maxdaudphi=1.
+          if(self.unscale==1 or maxdaucharge==0):maxdaucharge=1.
+          if(self.unscale==1 or maxdauc==0):maxdauc=1.
+          if(self.unscale==1 or maxdaun==0):maxdaun=1.
+          if(self.unscale==1 or maxdaue==0):maxdaue=1.
+          if(self.unscale==1 or maxdaum==0):maxdaum=1.
+          if(self.unscale==1 or maxdaup==0):maxdaup=1.
+          qjetset.append([[dau_pt[dausort[i]]/maxdaupt, dau_deta[dausort[i]]/maxdaudeta, dau_dphi[dausort[i]]/maxdaudphi, dau_charge[dausort[i]]/maxdaucharge, dau_is_e[dausort[i]]/maxdaue, dau_is_mu[dausort[i]]/maxdaum, dau_is_r[dausort[i]]/maxdaup, dau_is_chad[dausort[i]]/maxdauc, dau_is_nhad[dausort[i]]/maxdaun] if len(dau_pt)>i else [0.,0.,0.,0.,0.,0.,0.,0.,0.] for i in range(self.channel)])
     self.qjetset=np.array(qjetset)
     del qjetset
     self.qptset=np.array(qptset)
     del qptset
     self.qetaset=np.array(qetaset)
     del qetaset
+    self.qpidset=np.array(qpidset)
+    del qpidset
     """if("r" in self.rc):
       for c in range(channel):
         for i in range(3):
