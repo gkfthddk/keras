@@ -73,7 +73,6 @@ try:
 except:
   sepoch=eval(history[0])
   hist=eval(history[1])
-vjjdata="Data/jj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
 from sklearn.metrics import roc_auc_score, auc, roc_curve
 if(args.isz==0):iii=1
 if(args.isz==1):iii=2
@@ -89,21 +88,17 @@ except:
   model=keras.models.load_model(savename+"/check_"+str(epoch))
 rc=""
 for sha in model._feed_inputs:
-  if(sha._keras_shape[2]==10):
+  if(sha._keras_shape[-1]==33*33):
     rc+="c"
-  if(sha._keras_shape[2]==64):
-    rc+="r"
-rc="r"
 onehot=0
-loaded=np.load("jj{}.npz".format(args.pt))
-X=loaded["seqset"]
+loaded=np.load("jjt{}.npz".format(args.pt))
+if("c" in rc):
+  X=loaded["imgset"]
+else:
+  X=loaded["seqset"][:2,:,:,:4]
 Y=loaded["labelset"]
-X=X[:int(len(X))]
-#Xb=[]
-#for x in X:
-#  Xb.append([x[1],x[0]])
-#X=np.array(Xb)
-Y=Y[:int(len(Y))]
+X=X[:2,90000:126000]
+Y=Y[:2,90000:126000]
 #epoch=eval(open(savename+"/history").readline())+1
 #if(args.epoch==None):
 f=rt.TFile("{}/getd.root".format(savename),"recreate")
@@ -149,56 +144,19 @@ g2.Branch("p",p,"p/F")
 g2.Branch("pt",pt,"pt/F")
 g2.Branch("eta",eta,"eta/F")
 g2.Branch("pid",pid,"pid/F")"""
-label1=[]
-label2=[]
+label1=Y[0]
+label2=Y[1]
 if(args.stride==1):
-  X=np.reshape(X,(-1,1,X.shape[-2],X.shape[-1]))
-  for i in range(len(Y)):
-    if(Y[i][0]==1):
-      label1.append([1,0])
-      label2.append([1,0])
-    elif(Y[i][1]==1):
-      label1.append([1,0])
-      label2.append([0,1])
-    elif(Y[i][2]==1):
-      label1.append([0,1])
-      label2.append([1,0])
-    elif(Y[i][3]==1):
-      label1.append([0,1])
-      label2.append([0,1])
-if(args.stride==2):
-  label1=[]
-  label2=[]
-  x1=[]
-  x2=[]
-  for x in X:
-    x1.append(x[0])
-    x2.append(x[1])
-  x1=np.array(x1)
-  x2=np.array(x2)
-  for i in range(len(Y)):
-    if(Y[i][0]==1):
-      label1.append([1,0])
-      label2.append([1,0])
-    elif(Y[i][1]==1):
-      label1.append([1,0])
-      label2.append([0,1])
-    elif(Y[i][2]==1):
-      label1.append([0,1])
-      label2.append([1,0])
-    elif(Y[i][3]==1):
-      label1.append([0,1])
-      label2.append([0,1])
-label1=np.array(label1)
-label2=np.array(label2)
+  X=X.reshape((-1,10,33*33))
+  Y=Y.reshape((-1,2))
 x=[]
 y=[]
 g=[]
 q=[]
-bp=model.predict([x1,x2],verbose=0)
-bpt=loaded["ptset"][:len(X)]
-beta=loaded["etaset"][:len(X)]
-bpid=loaded["pidset"][:len(X)]
+bp=model.predict([X[0],X[1]],verbose=0)
+bpt=loaded["ptset"][:2,90000:126000]
+beta=loaded["etaset"][:2,90000:126000]
+bpid=loaded["pidset"][:2,90000:126000]
 #trees=[qs[0],qs[1],gs[0],gs[1]]
 #trees=[q1,q2,g1,g2]
 #qq qg gq gg
@@ -226,16 +184,16 @@ if(args.stride==2):
       if(label1[i][j]==1):
         if(args.mod==0):p[0]=bp[0][i][j]
         else:p[0]=bp[i][2*j]+bp[i][2*j+1]
-        pt[0]=bpt[i][0]
-        eta[0]=beta[i][0]
-        pid[0]=bpid[i][0]
+        pt[0]=bpt[0][i]
+        eta[0]=beta[0][i]
+        pid[0]=bpid[0][i]
         trees["{}{}".format(["q","g"][j],0)].Fill()
       if(label2[i][j]==1):
         if(args.mod==0):p[0]=bp[1][i][j]
         else:p[0]=bp[i][j]+bp[i][2+j]
-        pt[0]=bpt[i][1]
-        eta[0]=beta[i][1]
-        pid[0]=bpid[i][1]
+        pt[0]=bpt[1][i]
+        eta[0]=beta[1][i]
+        pid[0]=bpid[1][i]
         trees["{}{}".format(["q","g"][j],1)].Fill()
         #if(p[0]<0.2 and j == 0):
     #p[0]=bp[i][pic]
@@ -248,6 +206,13 @@ if(args.stride==2):
 #  g1.Fill()
 f.Write()
 f.Close()
-print("roc 12",roc_auc_score(label1[:,0],bp[0][:,0]))
-bp=model.predict([x1,x1],verbose=0)
-print("roc 11",roc_auc_score(label1[:,0],bp[0][:,0]))
+line1="{} roc 12 {} {} ".format(args.save,round(roc_auc_score(label1[:,0],bp[0][:,0]),5),round(roc_auc_score(label2[:,0],bp[1][:,0]),5))
+score1=round(roc_auc_score(label1[:,0],bp[0][:,0]),5)
+bp=model.predict([X[0],X[0]],verbose=0)
+line2="{} roc 11 {} {} {} \n".format(args.save,round(roc_auc_score(label1[:,0],bp[0][:,0]),5),round(roc_auc_score(label2[:,0],bp[1][:,0]),5),score1-round(roc_auc_score(label1[:,0],bp[0][:,0]),5))
+print(line1)
+print(line2)
+f=open("mergelog","a")
+f.write(line1)
+f.write(line2)
+f.close()

@@ -68,6 +68,15 @@ class jetiter(object):
     imgset=[]
     seqset=[]
     labelset=[]
+    eveset=[]
+    bdtset=[]
+    for i in range(stride):
+      ptset.append([])
+      etaset.append([])
+      pidset.append([])
+      imgset.append([])
+      seqset.append([])
+      labelset.append([])
     count=0
     count2=0
     count3=0
@@ -77,6 +86,7 @@ class jetiter(object):
       card=[0]*pow(2,stride)
       card[i]=1
       pairset[pairlist[i]]=card
+    qgto10={"q":[1,0],"g":[0,1]}
 
     self.pairset=pairset
     self.pairlist=pairlist
@@ -91,6 +101,7 @@ class jetiter(object):
       pids=[]
       imgs=[]
       seqs=[]
+      bdts=[]
       for ii in range(stride):
         self.qjet.GetEntry(self.b+ii)
         if(self.eta>abs(self.qjet.eta) or self.eta+self.etabin<abs(self.qjet.eta)):
@@ -113,6 +124,11 @@ class jetiter(object):
         pts.append(self.qjet.pt)
         etas.append(self.qjet.eta)
         pids.append(self.qjet.parton_id)
+        bdts.append(self.qjet.chad_mult+self.qjet.electron_mult+self.qjet.muon_mult)
+        bdts.append(self.qjet.nhad_mult+self.qjet.photon_mult)
+        bdts.append(self.qjet.ptd)
+        bdts.append(self.qjet.major_axis)
+        bdts.append(self.qjet.minor_axis)
         if("c" in self.rc):
           imgs.append([self.qjet.image_chad_pt_33,self.qjet.image_nhad_pt_33,self.qjet.image_electron_pt_33,self.qjet.image_muon_pt_33,self.qjet.image_photon_pt_33,self.qjet.image_chad_mult_33,self.qjet.image_nhad_mult_33,self.qjet.image_electron_mult_33,self.qjet.image_muon_mult_33,self.qjet.image_photon_mult_33])
         if("r" in self.rc):
@@ -148,13 +164,15 @@ class jetiter(object):
           else: 
             seqs.append([[dau_pt[dausort[i]]/maxdaupt, dau_deta[dausort[i]]/maxdaudeta, dau_dphi[dausort[i]]/maxdaudphi, dau_charge[dausort[i]]/maxdaucharge, dau_is_e[dausort[i]]/maxdaue, dau_is_mu[dausort[i]]/maxdaum, dau_is_r[dausort[i]]/maxdaup, dau_is_chad[dausort[i]]/maxdauc, dau_is_nhad[dausort[i]]/maxdaun] if len(dau_pt)>i else [0.,0.,0.,0.,0.,0.,0.,0.,0.] for i in range(self.channel)])
       if(len(pids)==stride):
-        ptset.append(pts)
-        etaset.append(etas)
-        pidset.append(pids)
-        imgset.append(imgs)
-        seqset.append(seqs)
-        label=pairset[pair]
-        labelset.append(label)
+        eveset.append(pairset[pair])
+        bdtset.append(bdts)
+        for ii in range(stride):
+          ptset[ii].append(pts[ii])
+          etaset[ii].append(etas[ii])
+          pidset[ii].append(pids[ii])
+          imgset[ii].append(imgs[ii])
+          seqset[ii].append(seqs[ii])
+          labelset[ii].append(qgto10[pair[ii]])
         count+=1
         #jetset +=...
       else:
@@ -240,6 +258,10 @@ class jetiter(object):
     del seqset
     self.labelset=np.array(labelset)
     del labelset
+    self.eveset=np.array(eveset)
+    del eveset
+    self.bdtset=np.array(bdtset)
+    del bdtset
     """if("r" in self.rc):
       for c in range(channel):
         for i in range(3):
