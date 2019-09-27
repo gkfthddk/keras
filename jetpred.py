@@ -1,4 +1,9 @@
-#!/usr/bin/python2.7
+'''Trains a simple convnet on the MNIST dataset.
+
+Gets to 99.25% test accuracy after 12 epochs
+(there is still a lot of margin for parameter tuning).
+16 seconds per epoch on a GRID K520 GPU.
+'''
 from __future__ import print_function
 import argparse
 import numpy as np
@@ -7,12 +12,13 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 import keras
 from keras import backend as K
+from jetiter import *
 import ROOT as rt
 from array import array
 from keras.backend.tensorflow_backend import set_session
 import matplotlib.pyplot as plt
 #plt.switch_backend('agg')
-#python jetdualpred.py --save dualn2500 --pt 500 --stride 2 --gpu 3
+
 batch_size = 100000
 
 parser=argparse.ArgumentParser()
@@ -32,16 +38,15 @@ parser.add_argument("--etabin",type=float,default=2.4,help='end ratio')
 parser.add_argument("--unscale",type=int,default=1,help='end ratio')
 parser.add_argument("--normb",type=float,default=10.,help='end ratio')
 parser.add_argument("--stride",type=int,default=2,help='end ratio')
-parser.add_argument("--mod",type=int,default=0,help='end ratio')
 
 args=parser.parse_args()
-if(args.gpu!=-1):
-  os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-  os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu)
-  config =tf.ConfigProto()
-  config.gpu_options.per_process_gpu_memory_fraction=0.3
 
-  set_session(tf.Session(config=config))
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu)
+config =tf.ConfigProto()
+config.gpu_options.per_process_gpu_memory_fraction=0.3
+
+set_session(tf.Session(config=config))
 
 # input image dimensions
 img_rows, img_cols = 33, 33
@@ -67,6 +72,7 @@ try:
 except:
   sepoch=eval(history[0])
   hist=eval(history[1])
+vjjdata="Data/jj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
 from sklearn.metrics import roc_auc_score, auc, roc_curve
 if(args.isz==0):iii=1
 if(args.isz==1):iii=2
@@ -82,22 +88,18 @@ except:
   model=keras.models.load_model(savename+"/check_"+str(epoch))
 rc=""
 for sha in model._feed_inputs:
-  if(sha._keras_shape[-1]==33*33):
+  if(sha._keras_shape[2]==10):
     rc+="c"
-  if(sha._keras_shape[-1]==33):
-    rc+="c"
+  if(sha._keras_shape[2]==64):
+    rc+="r"
+rc="r"
 onehot=0
-loaded=np.load("jjtt{}.npz".format(args.pt))
-if("c" in rc):
-  X=loaded["imgset"]
-else:
-  X=loaded["seqset"][:2,:,:,:4]
-Y=loaded["labelset"]
-X=X[:2,90000:126000]
-Y=Y[:2,90000:126000]
+test2=jetiter([vjjdata],batch_size=batch_size,begin=0.7,end=1.,rc=rc,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax,unscale=args.unscale,normb=args.normb,stride=args.stride)
+entries=test2.totalnum()
+print ("test   ",entries)
 #epoch=eval(open(savename+"/history").readline())+1
 #if(args.epoch==None):
-f=rt.TFile("{}/getd.root".format(savename),"recreate")
+f=rt.TFile("{}/get2.root".format(savename),"recreate")
 #else:
 #  f=rt.TFile("{}/{}get.root".format(savename,args.epoch),"recreate")
 qs=[]
@@ -107,7 +109,7 @@ pt=array('f',[0.])
 eta=array('f',[0.])
 pid=array('f',[0.])
 trees={}
-for i in range(2):
+for i in range(args.stride):
   for jetid in ["q","g"]:
     trees["{}{}".format(jetid,i)]=rt.TTree("{}{}".format(jetid,i+1),"{}{} tree".format(jetid,i+1))
     trees["{}{}".format(jetid,i)].Branch("p",p,"p/F")
@@ -140,60 +142,90 @@ g2.Branch("p",p,"p/F")
 g2.Branch("pt",pt,"pt/F")
 g2.Branch("eta",eta,"eta/F")
 g2.Branch("pid",pid,"pid/F")"""
-label1=Y[0]
-label2=Y[1]
-if(args.stride==1):
-  X=X.reshape((-1,10,33*33))
-  Y=Y.reshape((-1,2))
+gen=test2
 x=[]
 y=[]
 g=[]
 q=[]
-if(args.stride==1):bp=model.predict(X,verbose=0)
-if(args.stride==2):bp=model.predict([X[0],X[1]],verbose=0)
-bpt=loaded["ptset"][:2,90000:126000]
-beta=loaded["etaset"][:2,90000:126000]
-bpid=loaded["pidset"][:2,90000:126000]
+dens1=model.get_layer(index=21).output
+dens2=model.get_layer(index=21).output
+md1=keras.layers.Model(inputs=model.input,outputs=dens1)
+md2=keras.layers.Model(inputs=model.input,outputs=dens2)
+b1p=md1.predict(gen.seqset,verbose=0)
+b2p=md2.predict(gen.seqset,verbose=0)
+mb=[b1p,b2p]
+bp=model.predict(gen.seqset,verbose=0)
+bpt=gen.ptset
+beta=gen.etaset
+bpid=gen.pidset
 #trees=[qs[0],qs[1],gs[0],gs[1]]
 #trees=[q1,q2,g1,g2]
 #qq qg gq gg
+pairlist=test2.pairlist
 chek=[]
-"""if(args.stride==1):
-  for i in range(int(len(bp)/2)):
-    if(Y[i][0]==1):
-      p[0]=bp[i]
-      pt[0]=bpt[0][i]
-      eta[0]=beta[0][i]
-      pid[0]=bpid[0][i]
-      trees["{}{}".format("q",0)].Fill()
-    if(Y[i][0]==0):
-      p[0]=bp[i]
-      pt[0]=bpt[1][i]
-      eta[0]=beta[1][i]
-      pid[0]=bpid[1][i]
-      trees["{}{}".format("g",1)].Fill()"""
-if(args.stride==2):
-  if(args.mod==0):leng= len(bp[0])
-  else:leng=len(bp)
-  for i in range(leng):
-    for j in range(args.stride):
-      if(label1[i][j]==1):
-        if(args.mod==0):p[0]=bp[0][i][j]
-        else:p[0]=bp[i][2*j]+bp[i][2*j+1]
-        pt[0]=bpt[0][i]
-        eta[0]=beta[0][i]
-        pid[0]=bpid[0][i]
-        trees["{}{}".format(["q","g"][j],0)].Fill()
-      if(label2[i][j]==1):
-        if(args.mod==0):p[0]=bp[1][i][j]
-        else:p[0]=bp[i][j]+bp[i][2+j]
-        pt[0]=bpt[1][i]
-        eta[0]=beta[1][i]
-        pid[0]=bpid[1][i]
-        trees["{}{}".format(["q","g"][j],1)].Fill()
+for i in range(len(bp)):
+  for pic in range(len(pairlist)):
+    if(test2.labelset[i][pic]==1):
+      for j in range(args.stride):
+        p[0]=0
+        for k in range(pow(2,args.stride)):
+          if(pairlist[k][j]==pairlist[pic][j]):
+            p[0]+=bp[i][k]
+        p[0]=mb[j][i][0]
+        pt[0]=bpt[i][j]
+        eta[0]=beta[i][j]
+        pid[0]=bpid[i][j]
+        trees["{}{}".format(pairlist[pic][j],j)].Fill()
         #if(p[0]<0.2 and j == 0):
+        #  #chek.append([i,test2.labelset[i],bp[i],j,p[0],pairlist[pic]])
     #p[0]=bp[i][pic]
+    #pid[0]=np.where(test2.labelset[i]==1)[0][0]
     #trees["{}".format(pairlist[pic])].Fill()
+"""  if(test2.labelset[i][0]==1): #qq
+    for j in range(stride):
+      p[0]=bp[i][0]+bp[i][1+j]
+      if(j==0 and bp[i][0]+bp[i][1]!=p[0]): #qq qg
+        print(i,j,test2.labelset[i])
+      if(j==1 and bp[i][0]+bp[i][2]!=p[0]): #qq gq
+        print(i,j,test2.labelset[i])
+      pt[0]=bpt[i][j]
+      eta[0]=beta[i][j]
+      pid[0]=bpid[i][j]
+      trees[j].Fill()
+  if(test2.labelset[i][1]==1): #qg
+    for j in range(2):
+      p[0]=bp[i][1]+bp[i][3*j]
+      if(j==0 and bp[i][1]+bp[i][0]!=p[0]):
+        print(i,j,test2.labelset[i])
+      if(j==1 and bp[i][1]+bp[i][3]!=p[0]):
+        print(i,j,test2.labelset[i])
+      pt[0]=bpt[i][j]
+      eta[0]=beta[i][j]
+      pid[0]=bpid[i][j]
+      trees[j*3].Fill()
+  if(test2.labelset[i][2]==1): #gq
+    for j in range(2):
+      p[0]=bp[i][2]+bp[i][3*(1-j)]
+      if(j==0 and bp[i][2]+bp[i][3]!=p[0]):
+        print(i,j,test2.labelset[i])
+      if(j==1 and bp[i][2]+bp[i][0]!=p[0]):
+        print(i,j,test2.labelset[i])
+      pt[0]=bpt[i][j]
+      eta[0]=beta[i][j]
+      pid[0]=bpid[i][j]
+      trees[2-j].Fill()
+  if(test2.labelset[i][3]==1): #gg
+    for j in range(2):
+      p[0]=bp[i][3]+bp[i][2-j]
+      if(j==0 and bp[i][3]+bp[i][2]!=p[0]):
+        print(i,j,test2.labelset[i])
+      if(j==1 and bp[i][3]+bp[i][1]!=p[0]):
+        print(i,j,test2.labelset[i])
+      pt[0]=bpt[i][j]
+      eta[0]=beta[i][j]
+      pid[0]=bpid[i][j]
+      trees[2+j].Fill()"""
+print("shape",np.array(bp).shape,test2.seqset.shape)
 #for i in range(len(bp)):
 #  p[0]=bp[i]
 #  pt[0]=bpt[i]
@@ -202,19 +234,3 @@ if(args.stride==2):
 #  g1.Fill()
 f.Write()
 f.Close()
-if(args.stride==1):
-  line1="{} roc {} ".format(args.save,round(roc_auc_score(Y[:,0],bp[:,0]),5))
-  print(line1)
-  f=open("mergelog","a")
-  f.write(line1)
-if(args.stride==2):
-  line1="{} roc 12 {} {} mean {} ".format(args.save,round(roc_auc_score(label1[:,0],bp[0][:,0]),5),round(roc_auc_score(label2[:,0],bp[1][:,0]),5),round(roc_auc_score(np.concatenate([label1[:,0],label2[:,0]]),np.concatenate([bp[0][:,0],bp[1][:,0]])),5))
-  score1=round(roc_auc_score(label1[:,0],bp[0][:,0]),5)
-  bp=model.predict([X[0],X[0]],verbose=0)
-  line2="{} roc 11 {} {} {} \n".format(args.save,round(roc_auc_score(label1[:,0],bp[0][:,0]),5),round(roc_auc_score(label1[:,0],bp[1][:,0]),5),score1-round(roc_auc_score(label1[:,0],bp[0][:,0]),5))
-  print(line1)
-  print(line2)
-  f=open("mergelog","a")
-  f.write(line1)
-  f.write(line2)
-  f.close()

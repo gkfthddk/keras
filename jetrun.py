@@ -1,12 +1,9 @@
-#!/usr/bin/python2.7
 '''Trains a simple convnet on the MNIST dataset.
 
 Gets to 99.25% test accuracy after 12 epochs
 (there is still a lot of margin for parameter tuning).
 16 seconds per epoch on a GRID K520 GPU.
 '''
-#python jetdual.py --save dualn2200 --network nnn2 --pt 200 --epoch 50 --stride 2 --gpu 3
-#python jetdual.py --save dualn2m2200 --network nnn2 --pt 200 --epoch 50 --stride 2 --gpu 4 --pred 1 --mod 2
 from __future__ import print_function
 import argparse
 parser=argparse.ArgumentParser()
@@ -27,9 +24,6 @@ parser.add_argument("--etabin",type=float,default=2.4,help='end ratio')
 parser.add_argument("--unscale",type=int,default=1,help='end ratio')
 parser.add_argument("--normb",type=float,default=1.,help='end ratio')
 parser.add_argument("--stride",type=int,default=2,help='end ratio')
-parser.add_argument("--pred",type=int,default=0,help='end ratio')
-parser.add_argument("--mod",type=int,default=0,help='end ratio')
-parser.add_argument("--seed",type=str,default="",help='seed of model')
 args=parser.parse_args()
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
@@ -45,7 +39,6 @@ import numpy as np
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 from importlib import import_module
-from sklearn.utils import shuffle
 import datetime
 start=datetime.datetime.now()
 config =tf.ConfigProto()
@@ -67,80 +60,54 @@ net=import_module('symbols.symbols')
 try:
   onehot=net.onehot(args.network)
 except:onehot=0
-if(args.mod==0):
-  #if(args.network=="cnn"):model=net.jetcv(args.stride,args.seed)
-  #if(args.network=="cnn"):model=net.modelss((10,33,33))
-  if(args.network=="cnn"):model=net.jetcnn(args.stride,args.seed)
-  else:model=net.jetcon(args.network,args.stride,args.seed)
-else:model=net.jetconmod(args.network,args.stride,args.mod)
+model=net.jetcon(args.network,args.stride)
+rc=""
+for sha in model._feed_inputs:
+  if(sha._keras_shape[2]==10):
+    rc+="c"
+  if(sha._keras_shape[2]==64):
+    rc+="r"
+  print(sha.shape)
+print("rc",rc)
+#model.compile(loss='mean_squared_error',
 if(args.opt=="sgd"):
   opt=keras.optimizers.SGD()
 if(args.opt=="rms"):
   opt=keras.optimizers.RMSprop()
 if(args.opt=="adam"):
   opt=keras.optimizers.Adam()
-losses=args.loss
-if(args.stride==2):
-  if(args.mod==0):
-    losses={"output1" : args.loss,"output2" : args.loss}
-    lossweight={"output1" : 1.0, "output2" : 1.0}
-  else:
-    losses=losses={"output" : args.loss}
-    lossweight= {"output" : 1.0}
-else:
-  losses=losses={"output1" : args.loss}
-  lossweight= {"output1" : 1.0}
-model.compile(loss=losses,
-              optimizer=opt, loss_weights=lossweight,
+model.compile(loss=args.loss,
+              optimizer=opt,
 	      metrics=['accuracy'])
 """model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.SGD(),
               metrics=['accuracy'])
 """
+vzjdata="Data/zj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+vjjdata="Data/jj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+vzqdata="Data/zq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+vzgdata="Data/zg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+vqqdata="Data/qq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+vggdata="Data/gg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+
+tjdata="Data/jj_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+train=jetiter([tjdata],batch_size=128,istrain=1,rc=rc,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax,unscale=1,end=args.end,stride=args.stride)
 savename='save/'+str(args.save)
 os.system("mkdir "+savename)
 os.system("rm "+savename+'/log.log')
 plot_model(model,to_file=savename+'/model.png')
 print("### plot done ###")
+print ("train",train.totalnum())
 import logging
 logging.basicConfig(filename=savename+'/log.log',level=logging.DEBUG)
 logging.info(str(args))
 logging.info(str(datetime.datetime.now()))
+logging.info(str(train.totalnum())+" batches")
 checkpoint=keras.callbacks.ModelCheckpoint(filepath=savename+'/check_{epoch}',monitor='val_loss',verbose=0,save_best_only=False,mode='auto',period=1)
-loaded=np.load("jjtt{}.npz".format(args.pt))
-if(args.network=="cnn"):
-  X=loaded["imgset"]
-else:
-  X=loaded["seqset"][:,:,:,:4]
-Y=loaded["labelset"]
-
-Xv=X[:2,int(90000*0.7):90000]
-Yv=Y[:2,int(90000*0.7):90000]
-Xv=np.concatenate([Xv,[Xv[1],Xv[0]]],axis=1)
-Yv=np.concatenate([Yv,[Yv[1],Yv[0]]],axis=1)
-Xv[0],Xv[1],Yv[0],Yv[1]=shuffle(Xv[0],Xv[1],Yv[0],Yv[1])
-
-X=X[:2,:int(90000*0.7)]
-Y=Y[:2,:int(90000*0.7)]
-X=np.concatenate([X,[X[1],X[0]]],axis=1)
-Y=np.concatenate([Y,[Y[1],Y[0]]],axis=1)
-X[0],X[1],Y[0],Y[1]=shuffle(X[0],X[1],Y[0],Y[1])
-
-X=np.concatenate([X,Xv],axis=1)
-Y=np.concatenate([Y,Yv],axis=1)
-pidset=loaded["pidset"]
-if(args.stride==1):
-  #X=X.reshape((-1,10,33,33))
-  #Y=Y.reshape((-1,2))
-  X=X[0].reshape((-1,10,33*33))
-  Y=Y[0]
+X=train.seqset
+Y=train.labelset
 print("shape",Y.shape,X.shape)
-if(args.stride==1):history=model.fit(X,Y,batch_size=512,epochs=epochs,verbose=1,validation_split=0.3,callbacks=[checkpoint])
-if(args.stride==2):
-  if(args.mod==0):
-    history=model.fit([X[0],X[1]],{"output1" : Y[0],"output2" : Y[1]},batch_size=512,epochs=epochs,verbose=1,validation_split=0.3,callbacks=[checkpoint])
-  else:
-    history=model.fit(X,Y,batch_size=512,epochs=epochs,verbose=1,validation_split=0.3,callbacks=[checkpoint])
+history=model.fit(X,Y,batch_size=512,epochs=epochs,verbose=1,validation_split=0.3,callbacks=[checkpoint])
 
 #print(history.history)
 f=open(savename+'/history','w')
@@ -156,7 +123,4 @@ f.write(str(history.history))
 f.close()
 print (datetime.datetime.now()-start)
 logging.info("spent time "+str(datetime.datetime.now()-start))
-logging.info("python jetdualpred.py --save {} --pt {} --stride {} --gpu {} --mod {}".format(args.save,args.pt,args.stride,args.gpu,args.mod))
 
-if(args.pred==1):os.system("python jetdualpred.py --save {} --pt {} --stride {} --gpu {} --mod {}".format(args.save,args.pt,args.stride,args.gpu,args.mod))
-#python jetdualpred.py --save dualn2500 --pt 500 --stride 2 --gpu 3

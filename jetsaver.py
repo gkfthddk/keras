@@ -1,3 +1,4 @@
+#!/usr/bin/python2.7
 import os
 import sys
 import subprocess
@@ -15,7 +16,7 @@ ptmax=0
 now=datetime.now()
 #for pt,frac in zip([100,200,500,1000],[0.2870344 , 0.35906137, 0.48486092, 0.60672219]):
 #for pt in [100,200,500,1000]:
-for pt in [200,500]:
+for pt in [500]:
   if(pt==100):
     ptmin=0.815
     ptmax=1.159
@@ -29,11 +30,12 @@ for pt in [200,500]:
     ptmin=0.8235
     ptmax=1.076
 
-  #tjdata="Data/jj_pt_{0}_{1}.root".format(pt,int(pt*1.1))
-  tjdata="genroot/pp_jj_{0}.root".format(pt)
+  #tjdata="/home/yulee/keras/Data/jj_pt_{0}_{1}.root".format(pt,int(pt*1.1))
+  tjdata="/home/yulee/keras/genroot/pp_jj_{0}.root".format(pt)
   etabin=2.4
   ptmin=0
   ptmax=2
+  print(pt,tjdata)
   #train=jetiter([tjdata],batch_size=128,istrain=1,rc="r",etabin=etabin,pt=pt,ptmin=ptmin,ptmax=ptmax,unscale=1,end=1)
   train=jetiter([tjdata],batch_size=128,istrain=1,rc="rc",etabin=etabin,pt=pt,ptmin=ptmin,ptmax=ptmax,unscale=1,end=1,channel=32)
   ptset=train.ptset
@@ -45,7 +47,8 @@ for pt in [200,500]:
   labelset=train.labelset
   eveset=train.eveset
   pairlist=train.pairlist
-  np.savez_compressed("jjt{}".format(pt),ptset=ptset,etaset=etaset,pidset=pidset,seqset=seqset,imgset=imgset,bdtset=bdtset,labelset=labelset,eveset=eveset,pairlist=pairlist)
+  np.savez_compressed("jjtt{}".format(pt),ptset=ptset,etaset=etaset,pidset=pidset,seqset=seqset,imgset=imgset,bdtset=bdtset,labelset=labelset,eveset=eveset,pairlist=pairlist)
+  print("jjt{}".format(pt))
   label1=[]
   label2=[]
   Y=eveset
@@ -64,6 +67,7 @@ for pt in [200,500]:
       label2.append([0,1])
   print(labelset[0]==label1)
   print(labelset[1]==label2)
+  del train
   """
   zjsetz=trainz.qjetset
   zptz=trainz.qptset

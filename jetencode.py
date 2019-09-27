@@ -1,4 +1,3 @@
-#!/usr/bin/python2.7
 '''Trains a simple convnet on the MNIST dataset.
 
 Gets to 99.25% test accuracy after 12 epochs
@@ -19,7 +18,7 @@ parser.add_argument("--ptmin",type=float,default=0.,help='pt range pt~pt*1.1')
 parser.add_argument("--ptmax",type=float,default=2.,help='pt range pt~pt*1.1')
 parser.add_argument("--epochs",type=int,default=10,help='num epochs')
 parser.add_argument("--batch_size",type=int,default=512,help='batch_size')
-parser.add_argument("--loss",type=str,default="categorical_crossentropy",help='network name on symbols/')
+parser.add_argument("--loss",type=str,default="binary_crossentropy",help='network name on symbols/')
 parser.add_argument("--gpu",type=int,default=0,help='gpu number')
 parser.add_argument("--isz",type=int,default=0,help='0 or z or not')
 parser.add_argument("--eta",type=float,default=0.,help='end ratio')
@@ -29,7 +28,6 @@ parser.add_argument("--normb",type=float,default=1.,help='end ratio')
 parser.add_argument("--stride",type=int,default=2,help='end ratio')
 parser.add_argument("--pred",type=int,default=0,help='end ratio')
 parser.add_argument("--mod",type=int,default=0,help='end ratio')
-parser.add_argument("--seed",type=str,default="",help='seed of model')
 args=parser.parse_args()
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
@@ -45,7 +43,6 @@ import numpy as np
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 from importlib import import_module
-from sklearn.utils import shuffle
 import datetime
 start=datetime.datetime.now()
 config =tf.ConfigProto()
@@ -67,32 +64,37 @@ net=import_module('symbols.symbols')
 try:
   onehot=net.onehot(args.network)
 except:onehot=0
-if(args.mod==0):
-  #if(args.network=="cnn"):model=net.jetcv(args.stride,args.seed)
-  #if(args.network=="cnn"):model=net.modelss((10,33,33))
-  if(args.network=="cnn"):model=net.jetcnn(args.stride,args.seed)
-  else:model=net.jetcon(args.network,args.stride,args.seed)
+if(args.mod==0):model=net.jetcon(args.network,args.stride)
 else:model=net.jetconmod(args.network,args.stride,args.mod)
+rc=""
+#model.compile(loss='mean_squared_error',
 if(args.opt=="sgd"):
   opt=keras.optimizers.SGD()
 if(args.opt=="rms"):
   opt=keras.optimizers.RMSprop()
 if(args.opt=="adam"):
   opt=keras.optimizers.Adam()
+if(args.opt=="adadelta"):
+  opt=keras.optimizers.Adadelta()
+
 losses=args.loss
 if(args.stride==2):
   if(args.mod==0):
     losses={"output1" : args.loss,"output2" : args.loss}
     lossweight={"output1" : 1.0, "output2" : 1.0}
+    model.compile(loss=losses,
+                  optimizer=opt, loss_weights=lossweight,
+            metrics=['accuracy'])
   else:
     losses=losses={"output" : args.loss}
     lossweight= {"output" : 1.0}
+    model.compile(loss=losses,
+                  optimizer=opt, loss_weights=lossweight,
+            metrics=['accuracy'])
 else:
-  losses=losses={"output1" : args.loss}
-  lossweight= {"output1" : 1.0}
-model.compile(loss=losses,
-              optimizer=opt, loss_weights=lossweight,
-	      metrics=['accuracy'])
+  model.compile(loss=args.loss,
+                optimizer=opt,
+          metrics=['accuracy'])
 """model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.SGD(),
               metrics=['accuracy'])
@@ -107,40 +109,64 @@ logging.basicConfig(filename=savename+'/log.log',level=logging.DEBUG)
 logging.info(str(args))
 logging.info(str(datetime.datetime.now()))
 checkpoint=keras.callbacks.ModelCheckpoint(filepath=savename+'/check_{epoch}',monitor='val_loss',verbose=0,save_best_only=False,mode='auto',period=1)
-loaded=np.load("jjtt{}.npz".format(args.pt))
-if(args.network=="cnn"):
-  X=loaded["imgset"]
-else:
-  X=loaded["seqset"][:,:,:,:4]
-Y=loaded["labelset"]
-
-Xv=X[:2,int(90000*0.7):90000]
-Yv=Y[:2,int(90000*0.7):90000]
-Xv=np.concatenate([Xv,[Xv[1],Xv[0]]],axis=1)
-Yv=np.concatenate([Yv,[Yv[1],Yv[0]]],axis=1)
-Xv[0],Xv[1],Yv[0],Yv[1]=shuffle(Xv[0],Xv[1],Yv[0],Yv[1])
-
-X=X[:2,:int(90000*0.7)]
-Y=Y[:2,:int(90000*0.7)]
-X=np.concatenate([X,[X[1],X[0]]],axis=1)
-Y=np.concatenate([Y,[Y[1],Y[0]]],axis=1)
-X[0],X[1],Y[0],Y[1]=shuffle(X[0],X[1],Y[0],Y[1])
-
-X=np.concatenate([X,Xv],axis=1)
-Y=np.concatenate([Y,Yv],axis=1)
-pidset=loaded["pidset"]
+loaded=np.load("jj{}.npz".format(args.pt))
+X=loaded["seqset"][:100000]
+Y=loaded["labelset"][:100000]
+pidset=loaded["pidset"][:100000]
 if(args.stride==1):
-  #X=X.reshape((-1,10,33,33))
-  #Y=Y.reshape((-1,2))
-  X=X[0].reshape((-1,10,33*33))
-  Y=Y[0]
+  xb=[]
+  #X=np.reshape(X,(-1,1,X.shape[-2],X.shape[-1]))
+  #for x in X:
+  #  xb.append([x[1]])
+  #X=np.array(xb)
+
+  label1=[]
+  for i in range(len(Y)):
+    xb.extend([X[i][0],X[i][1]])
+    if(Y[i][0]==1):
+      label1.append([1,0])
+      label1.append([1,0])
+    elif(Y[i][1]==1):
+      label1.append([1,0])
+      label1.append([0,1])
+    elif(Y[i][2]==1):
+      label1.append([0,1])
+      label1.append([1,0])
+    elif(Y[i][3]==1):
+      label1.append([0,1])
+      label1.append([0,1])
+  label1=np.array(label1)
+  X=np.array(xb)
+if(args.stride==2):
+  label1=[]
+  label2=[]
+  x1=[]
+  x2=[]
+  for x in X:
+    x1.append(x[0])
+    x2.append(x[1])
+  x1=np.array(x1)
+  x2=np.array(x2)
+  for i in range(len(Y)):
+    if(pidset[i][0]==21):
+      label1.append([0,1])
+    else:
+      label1.append([1,0])
+    if(pidset[i][1]==21):
+      label2.append([0,1])
+    else:
+      label2.append([1,0])
+  label1=np.array(label1)
+  label2=np.array(label2)
 print("shape",Y.shape,X.shape)
-if(args.stride==1):history=model.fit(X,Y,batch_size=512,epochs=epochs,verbose=1,validation_split=0.3,callbacks=[checkpoint])
+X=X[:,:,0]
+if(args.stride==1):
+  history=model.fit(X,X,batch_size=512,epochs=epochs,verbose=1,validation_split=0.5,callbacks=[checkpoint])
 if(args.stride==2):
   if(args.mod==0):
-    history=model.fit([X[0],X[1]],{"output1" : Y[0],"output2" : Y[1]},batch_size=512,epochs=epochs,verbose=1,validation_split=0.3,callbacks=[checkpoint])
+    history=model.fit([x1,x2],{"output1" : label1,"output2" : label2},batch_size=512,epochs=epochs,verbose=1,validation_split=0.3,callbacks=[checkpoint])
   else:
-    history=model.fit(X,Y,batch_size=512,epochs=epochs,verbose=1,validation_split=0.3,callbacks=[checkpoint])
+    history=model.fit([x1,x2],Y,batch_size=512,epochs=epochs,verbose=1,validation_split=0.3,callbacks=[checkpoint])
 
 #print(history.history)
 f=open(savename+'/history','w')
@@ -156,7 +182,6 @@ f.write(str(history.history))
 f.close()
 print (datetime.datetime.now()-start)
 logging.info("spent time "+str(datetime.datetime.now()-start))
-logging.info("python jetdualpred.py --save {} --pt {} --stride {} --gpu {} --mod {}".format(args.save,args.pt,args.stride,args.gpu,args.mod))
 
-if(args.pred==1):os.system("python jetdualpred.py --save {} --pt {} --stride {} --gpu {} --mod {}".format(args.save,args.pt,args.stride,args.gpu,args.mod))
+if(args.pred==1):os.system("python jetencodepred.py --save {} --pt {} --stride {} --gpu {} --mod {}".format(args.save,args.pt,args.stride,args.gpu,args.mod))
 #python jetdualpred.py --save dualn2500 --pt 500 --stride 2 --gpu 3

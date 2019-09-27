@@ -130,7 +130,7 @@ class jetiter(object):
         bdts.append(self.qjet.major_axis)
         bdts.append(self.qjet.minor_axis)
         if("c" in self.rc):
-          imgs.append([self.qjet.image_chad_pt_33,self.qjet.image_nhad_pt_33,self.qjet.image_electron_pt_33,self.qjet.image_muon_pt_33,self.qjet.image_photon_pt_33,self.qjet.image_chad_mult_33,self.qjet.image_nhad_mult_33,self.qjet.image_electron_mult_33,self.qjet.image_muon_mult_33,self.qjet.image_photon_mult_33])
+          imgs.append([np.array(self.qjet.image_chad_pt_33),np.array(self.qjet.image_nhad_pt_33),np.array(self.qjet.image_electron_pt_33),np.array(self.qjet.image_muon_pt_33),np.array(self.qjet.image_photon_pt_33),np.array(self.qjet.image_chad_mult_33),np.array(self.qjet.image_nhad_mult_33),np.array(self.qjet.image_electron_mult_33),np.array(self.qjet.image_muon_mult_33),np.array(self.qjet.image_photon_mult_33)])
         if("r" in self.rc):
           dau_pt=self.qjet.dau_pt
           dau_deta=self.qjet.dau_deta
