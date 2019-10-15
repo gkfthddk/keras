@@ -54,11 +54,12 @@ jetsnnn={"rc":"r","onehot":0,"num_input":1,"network":"in0=inp((2,64,9))-MMs=res(
 
 
 def res(model,ch=64):
+    #check dimension!!
     return Reshape((-1,ch,9))(model)
 def inp(is2):
     return Input(shape=is2)
-def ba(model):
-    return BatchNormalization()(model)
+def ba(model,axis=-1):
+    return BatchNormalization(axis=axis)(model)
 def emb(model,dim=3):
     jet=Lambda(lambda x: x[:,:,:4])(model)
     pid=Lambda(lambda x: x[:,:,4:])(model)
@@ -190,33 +191,179 @@ def nnn3(inp,stride):
     return mss
 def nna3(inp,stride):
     MMs=[]
+    mms=[]
     for i in range(stride):
-      MMs.append(ba(res(inp[i])))#ba(MMs[i])
-      MMs[i]=lc2(MMs[i],64,(1,9),(1,1))
-      MMs[i]=Permute((3,2,1))(MMs[i])
-      MMs[i]=ba(MMs[i])
-      MMs[i]=lc2(MMs[i],1,(64,1),(1,1))
+      MMs.append(inp[i])
+      MMs[i]=dn(MMs[i],8)
+      MMs[i]=ba(MMs[i],1)
+      MMs[i]=dn(MMs[i],16)
+      MMs[i]=Permute((2,1))(MMs[i])
+      MMs[i]=ba(MMs[i],1)
+      MMs[i]=dn(MMs[i],64)
+      MMs[i]=Permute((2,1))(MMs[i])#move to down?
+      MMs[i]=ba(MMs[i],1)
       MMs[i]=Flatten()(MMs[i])
-      #MMs[i]=ba(MMs[i])
-    mss=[]
+      MMs[i]=ba(MMs[i])
+      MMs[i]=dn(MMs[i],64)
     for i in range(stride):
-      if(stride==1):mss.append(MMs[0])
-      else:mss.append(Add()([MMs[l] for l in range(len(MMs))]))
-      #else:mss.append(Concatenate()([MMs[l] if l!=i else dn(MMs[l],128) for l in range(len(MMs))]))
-      mss[i]=ba(mss[i])
-      mss[i]=dn(mss[i],128)
-      mss[i]=ba(mss[i])
-      mss[i]=Dense(2,activation='softmax',name="output{}".format(i+1))(mss[i])
-      #mss[i]=out(mss[i],1)
-    #  #mss[i]=[Lambda(lambda x: x[:,0:1])(mss[i]),Lambda(lambda x: x[:,1:2])(mss[i])]
-    return mss
+      mms.append(ba(Concatenate()([MMs[i],GaussianNoise(0.5)(MMs[i-1])])))
+    for i in range(stride):
+      MMs[i]=mms[i]
+      MMs[i]=dn(MMs[i],16)
+      MMs[i]=Dense(2,activation='softmax',name="output{}".format(i+1))(MMs[i])
+      #MMs[i]=ba(MMs[i])
+    return MMs
+def pfr(inp,stride,seed):
+    MMs=[]
+    mm=Masking(mask_value=0.)(inp)
+    mm=gru(mm,128,0,0)
+    for i in range(stride):
+      MMs.append(mm)
+      MMs[i]=dn(MMs[i],64)
+      MMs[i]=ba(MMs[i])
+      MMs[i]=dn(MMs[i],64)
+      MMs[i]=ba(MMs[i])
+      MMs[i]=dn(MMs[i],16)
+      MMs[i]=Dense(2,activation='softmax',name="output{}".format(i+1))(MMs[i])
+      #MMs[i]=ba(MMs[i])
+    return MMs
+def pfk(inp,stride,seed):
+    MMs=[]
+    mm=dn(inp,32)
+    mm=Permute((2,1))(mm)
+    mm=ba(mm,1)
+    mm=dn(mm,16)
+    mm=Permute((2,1))(mm)#move to down?
+    mm=ba(mm,1)
+    mm=dn(mm,32)
+    mm=Flatten()(mm)
+    mm=ba(mm)
+    mm=dn(mm,128)
+    for i in range(stride):
+      MMs.append(ba(mm))
+      MMs[i]=dn(MMs[i],64)
+      MMs[i]=Dense(2,activation='softmax',name="output{}".format(i+1))(MMs[i])
+      #MMs[i]=ba(MMs[i])
+    return MMs
+def jetcnn(stride=2,seed="con",x_shape=(10, 33*33)):
+    inp=[]
+    MMs=[]
+    mms=[]
+    for i in range(stride):
+      inp.append(Input(x_shape))
+      MMs.append(Reshape((10,33,33))(inp[i]))
+      for filters, kernels in zip([64, 32, 16],[3,2,1]):
+        MMs[i]=ba(MMs[i],1)
+        MMs[i] = Conv2D(filters=filters,
+                        kernel_size=kernels,
+                        strides=(1,1),
+                        padding="valid",
+                        activation="relu")(MMs[i])
+        MMs[i]=MaxPooling2D((2,2),(2,2))(MMs[i])
+      MMs[i]=Flatten()(MMs[i])
+      MMs[i]=ba(MMs[i])
+      MMs[i]=dn(MMs[i],128)
+    if(stride==1):
+      mms.append(MMs[0])
+    else:
+      if(seed=="con"):incon=Concatenate(axis=1)(MMs)
+      if(seed=="min"):incon=Minimum()(MMs)
+      if(seed=="max"):incon=Maximum()(MMs)
+      for i in range(stride):
+        if(seed=="non"):mms.append(MMs[i])
+        else:mms.append(incon)
+
+    for i in range(stride):
+      mms[i]=ba(mms[i])
+      mms[i]=dn(mms[i],128)#128
+      if(seed!="non"):
+        mms[i]=Dense(128,activation='softmax')(mms[i])#
+    for i in range(stride):#
+      if(seed=="non"):
+        MMs[i]=mms[i]
+      else:
+        MMs[i]=Multiply()([mms[stride-i-1],incon])#
+    for i in range(stride):#
+      mms[i]=ba(MMs[i])
+      mms[i]=dn(mms[i],128)
+      mms[i]=Dense(2,activation='softmax',name="output{}".format(i+1))(mms[i])
+    return Model(inp,mms)
+def nnk(inp,stride,seed):
+    MMs=[]
+    for i in range(stride):
+      MMs.append(inp[i])
+      MMs[i]=ba(MMs[i],1)
+      MMs[i]=dn(MMs[i],16)
+      MMs[i]=Permute((2,1))(MMs[i])
+      MMs[i]=ba(MMs[i],1)
+      MMs[i]=dn(MMs[i],64)
+      MMs[i]=Permute((2,1))(MMs[i])#move to down?
+      MMs[i]=ba(MMs[i],1)
+      MMs[i]=Flatten()(MMs[i])
+      MMs[i]=ba(MMs[i])
+      MMs[i]=dn(MMs[i],64)
+    if(seed=="con"):incon=Concatenate()(MMs)
+    if(seed=="add"):incon=Add()(MMs)
+    if(seed=="sub"):incon=Subtract()(MMs)
+    if(seed=="mul"):incon=Multiply()(MMs)
+    if(seed=="ave"):incon=Average()(MMs)
+    if(seed=="max"):incon=Maximum()(MMs)
+    if(seed=="min"):incon=Minimum()(MMs)
+    for i in range(stride):
+      if(seed=="non"):MMs[i]=ba(MMs[i])
+      else:MMs[i]=ba(incon)
+      MMs[i]=dn(MMs[i],16)
+      MMs[i]=Dense(2,activation='softmax',name="output{}".format(i+1))(MMs[i])
+      #MMs[i]=ba(MMs[i])
+    return MMs
+def nnt(inp,stride,seed):
+    MMs=[]
+    for i in range(stride):
+      MMs.append(inp[i])
+      MMs[i]=dn(MMs[i],8)
+      MMs[i]=ba(MMs[i],1)
+      MMs[i]=dn(MMs[i],16)
+      MMs[i]=Permute((2,1))(MMs[i])
+      MMs[i]=ba(MMs[i],1)
+      MMs[i]=dn(MMs[i],64)
+      MMs[i]=Permute((2,1))(MMs[i])#move to down?
+      MMs[i]=ba(MMs[i],1)
+      MMs[i]=Flatten()(MMs[i])
+      MMs[i]=ba(MMs[i])
+      MMs[i]=dn(MMs[i],64)
+    if(seed=="con"):incon=Concatenate()(MMs)
+    if(seed=="add"):incon=Add()(MMs)
+    if(seed=="sub"):incon=Subtract()(MMs)
+    if(seed=="mul"):incon=Multiply()(MMs)
+    if(seed=="ave"):incon=Average()(MMs)
+    if(seed=="max"):incon=Maximum()(MMs)
+    if(seed=="min"):incon=Minimum()(MMs)
+    for i in range(stride):
+      if(seed=="non"):MMs[i]=ba(MMs[i])
+      else:MMs[i]=ba(incon)
+      MMs[i]=dn(MMs[i],16)
+    if(seed=="con"):incon=Concatenate()(MMs)
+    if(seed=="add"):incon=Add()(MMs)
+    if(seed=="sub"):incon=Subtract()(MMs)
+    if(seed=="mul"):incon=Multiply()(MMs)
+    if(seed=="ave"):incon=Average()(MMs)
+    if(seed=="max"):incon=Maximum()(MMs)
+    if(seed=="min"):incon=Minimum()(MMs)
+    for i in range(stride):
+      if(seed=="non"):MMs[i]=ba(MMs[i])
+      else:MMs[i]=ba(incon)
+      MMs[i]=dn(MMs[i],16)
+      MMs[i]=Dense(2,activation='softmax',name="output{}".format(i+1))(MMs[i])
+      #MMs[i]=ba(MMs[i])
+    return MMs
 def nnc(inp,stride):
     MMs=[]
     incon=Concatenate(axis=2)(inp)
+    incon=dn(incon,32)
     for i in range(stride):
       MMs.append(dn(incon,128))
       MMs[i]=Permute((2,1))(MMs[i])
-      MMs[i]=ba(MMs[i])
+      MMs[i]=ba(MMs[i],1)
       MMs[i]=dn(MMs[i],128)
       MMs[i]=Permute((2,1))(MMs[i])
       #MMs[i]=ba(MMs[i])
@@ -231,15 +378,47 @@ def nnc(inp,stride):
       MMs[i]=Dense(2,activation='softmax',name="output{}".format(i+1))(MMs[i])
       #MMs[i]=ba(MMs[i])
     return MMs
-def nnm(inp,stride):
+def nnm(inp,stride,seed):
     MMs=[]
-    #incon=Concatenate(axis=2)(inp)
-    incon=Maximum()(inp)
     for i in range(stride):
-      MMs.append(dn(incon,128))
+      MMs.append(inp[i])
+      MMs[i]=dn(MMs[i],8)
+      MMs[i]=ba(MMs[i],1)
+    if(seed=="con"):incon=Concatenate(axis=2)(MMs)
+    if(seed=="add"):incon=Add()(MMs)
+    if(seed=="sub"):incon=Subtract()(MMs)
+    if(seed=="mul"):incon=Multiply()(MMs)
+    if(seed=="ave"):incon=Average()(MMs)
+    if(seed=="max"):incon=Maximum()(MMs)
+    if(seed=="min"):incon=Minimum()(MMs)
+    if(seed=="dot"):incon=Dot()(MMs)
+    for i in range(stride):
+      MMs[i]=ba(incon,1)
+      MMs[i]=dn(MMs[i],16)
       MMs[i]=Permute((2,1))(MMs[i])
+      MMs[i]=ba(MMs[i],1)
+      MMs[i]=dn(MMs[i],64)
+      MMs[i]=Permute((2,1))(MMs[i])
+      #MMs[i]=ba(MMs[i])
+      #MMs[i]=dn(MMs[i],32)
+      #MMs[i]=Permute((2,1))(MMs[i])
+      #MMs[i]=ba(MMs[i])
+      #MMs[i]=dn(MMs[i],32)
+      MMs[i]=Flatten()(MMs[i])
       MMs[i]=ba(MMs[i])
-      MMs[i]=dn(MMs[i],128)
+      MMs[i]=dn(MMs[i],64)
+      MMs[i]=ba(MMs[i])
+      MMs[i]=Dense(2,activation='softmax',name="output{}".format(i+1))(MMs[i])
+      #MMs[i]=ba(MMs[i])
+    return MMs
+def nnb(inp,stride,seed):
+    MMs=[]
+    for i in range(stride):
+      MMs.append(inp[i-1])
+      MMs[i]=dn(MMs[i],16)
+      MMs[i]=Permute((2,1))(MMs[i])
+      MMs[i]=ba(MMs[i],1)
+      MMs[i]=dn(MMs[i],64)
       MMs[i]=Permute((2,1))(MMs[i])
       #MMs[i]=ba(MMs[i])
       #MMs[i]=dn(MMs[i],32)
@@ -256,7 +435,7 @@ def nnm(inp,stride):
 def nncode(inp,stride):
     MMs=[]
     for i in range(stride):
-      MMs.append(ba(inp[i]))#ba(MMs[i])
+      MMs.append(ba(inp[i],1))#ba(MMs[i])
       MMs[i]=dn(MMs[i],128)
       #MMs[i]=Permute((2,1))(MMs[i])
       #MMs[i]=dn(MMs[i],128)
@@ -285,10 +464,10 @@ def nncode(inp,stride):
 def nnn2mod(inp,stride,mod):
     MMs=[]
     for i in range(stride):
-      MMs.append(ba(res(inp[i])))#ba(MMs[i])
+      MMs.append(ba(res(inp[i],1)))#ba(MMs[i])
       MMs[i]=lc2(MMs[i],128,(1,9),(1,1))
       MMs[i]=Permute((3,2,1))(MMs[i])
-      MMs[i]=ba(MMs[i])
+      MMs[i]=ba(MMs[i],1)
       MMs[i]=lc2(MMs[i],1,(64,1),(1,1))
       MMs[i]=Flatten()(MMs[i])
       #MMs[i]=ba(MMs[i])
@@ -319,7 +498,19 @@ def rnn(inp,stride):
       MMs[i]=out(MMs[i],1)
       MMs[i]=[Lambda(lambda x: x[:,0:1])(MMs[i]),Lambda(lambda x: x[:,1:2])(MMs[i])]
     return MMs
-def jetcon(name,stride):
+def pfcon(name,stride,seed=""):
+    if("c" in name):
+      inp=Input(shape=(4,55*72))
+    else:
+      inp=Input(shape=(128,4))
+    if(name=="pfk"):
+      MMs=pfk(inp,stride,seed)
+    if(name=="pfr"):
+      MMs=pfr(inp,stride,seed)
+    if(name=="pfc"):
+      MMs=pfr(inp,stride,seed)
+    return Model(inp,MMs)
+def jetcon(name,stride,seed=""):
     inp=[]
     for i in range(stride):
       if("code" in name):
@@ -340,7 +531,11 @@ def jetcon(name,stride):
     if(name=="nnc"):
       MMs=nnc(inp,stride)
     if(name=="nnm"):
-      MMs=nnm(inp,stride)
+      MMs=nnm(inp,stride,seed)
+    if(name=="nnb"):
+      MMs=nnb(inp,stride,seed)
+    if(name=="nnk"):
+      MMs=nnk(inp,stride,seed)
     if(name=="nnn1"):
       MMs=nnn1(inp,stride)
     if(name=="nncode"):
@@ -381,16 +576,88 @@ def conv_block(tensor,
     tensor = BatchNormalization(axis=1)(tensor)
     tensor = Activation(activation)(tensor)
     return tensor
+def jetcnn(stride=2,seed="con",x_shape=(10, 33*33)):
+    inp=[]
+    MMs=[]
+    mms=[]
+    for i in range(stride):
+      inp.append(Input(x_shape))
+      MMs.append(Reshape((10,33,33))(inp[i]))
+      for filters, kernels in zip([64, 32, 16],[3,2,1]):
+        MMs[i]=ba(MMs[i],1)
+        MMs[i] = Conv2D(filters=filters,
+                        kernel_size=kernels,
+                        strides=(1,1),
+                        padding="valid",
+                        activation="relu")(MMs[i])
+        MMs[i]=MaxPooling2D((2,2),(2,2))(MMs[i])
+      MMs[i]=Flatten()(MMs[i])
+      MMs[i]=ba(MMs[i])
+      MMs[i]=dn(MMs[i],128)
+    if(stride==1):
+      mms.append(MMs[0])
+    else:
+      if(seed=="con"):incon=Concatenate(axis=1)(MMs)
+      if(seed=="min"):incon=Minimum()(MMs)
+      if(seed=="max"):incon=Maximum()(MMs)
+      for i in range(stride):
+        if(seed=="non"):mms.append(MMs[i])
+        else:mms.append(incon)
 
-def modelss(x_shape=(10, 33, 33)):
+    for i in range(stride):
+      mms[i]=ba(mms[i])
+      mms[i]=dn(mms[i],128)#128
+      if(seed!="non"):
+        mms[i]=Dense(128,activation='softmax')(mms[i])#
+    for i in range(stride):#
+      if(seed=="non"):
+        MMs[i]=mms[i]
+      else:
+        MMs[i]=Multiply()([mms[stride-i-1],incon])#
+    for i in range(stride):#
+      mms[i]=ba(MMs[i])
+      mms[i]=dn(mms[i],128)
+      mms[i]=Dense(2,activation='softmax',name="output{}".format(i+1))(mms[i])
+    return Model(inp,mms)
+def jetcv(stride=2,seed="con",x_shape=(10, 33*33)):
+    inp=[]
+    MMs=[]
+    mms=[]
+    for i in range(stride):
+      inp.append(Input(x_shape))
+      MMs.append(Reshape((10,33,33))(inp[i]))
+      for filters in [32, 64, 64, 32]:
+        MMs[i]=ba(MMs[i],1)
+        MMs[i] = Conv2D(filters=filters,
+                        kernel_size=5,
+                        strides=(1,1),
+                        padding="valid",
+                        activation="relu")(MMs[i])
+    if(stride==1):
+      mms.append(MMs[0])
+    else:
+      incon=Concatenate(axis=1)(MMs)
+      for i in range(stride):
+        if(seed=="non"):mms.append(MMs[i])
+        else:mms.append(incon)
+
+    for i in range(stride):
+      mms[i]=ba(mms[i],1)
+      mms[i] = Conv2D(filters=2, kernel_size=1, strides=1)(mms[i])
+      mms[i] = GlobalAveragePooling2D()(mms[i])
+      mms[i] = Softmax(name="output{}".format(i+1))(mms[i])
+    return Model(inp,mms)
+
+def modelss(x_shape=(10, 33*33)):
     x = Input(x_shape)
+    h=x
+    #h=Reshape((10,33,33))(x)
 
-    h = x
     for filters in [32, 64, 64, 32]:
         h = conv_block(h, filters, activation="relu")
     h = Conv2D(filters=2, kernel_size=1, strides=1)(h)
     logits = GlobalAveragePooling2D()(h)
-    y_score = Softmax()(logits)
+    y_score = Softmax(name="output1")(logits)
     model = Model(inputs=x, outputs=y_score)
     return model
 
