@@ -50,10 +50,10 @@ class jetiter(object):
     self.rat=sorted([1-rat,rat])
     self.batch_size = batch_size
     """if(varbs==0):
-      self._provide_data = zip(data_names, [(self.batch_size, 3, 33, 33)])
+      self._provide_data = zip(data_names, [(self.batch_size, 3, 25, 33)])
     else:
       data_names=['images','variables']
-      self._provide_data = zip(data_names, [(self.batch_size, 3, 33, 33),(self.batch_size,5)])
+      self._provide_data = zip(data_names, [(self.batch_size, 3, 25, 33),(self.batch_size,5)])
     self.varbs=varbs
     self._provide_label = zip(label_names, [(self.batch_size,)])
     """
@@ -80,6 +80,7 @@ class jetiter(object):
     count=0
     count2=0
     count3=0
+    event=0
     pairlist=list(self.makepair(stride=stride))
     pairset={}
     for i in range(len(pairlist)):
@@ -130,11 +131,36 @@ class jetiter(object):
         bdts.append(self.qjet.major_axis)
         bdts.append(self.qjet.minor_axis)
         if("c" in self.rc):
-          imgs.append([np.array(self.qjet.image_chad_pt_33),np.array(self.qjet.image_nhad_pt_33),np.array(self.qjet.image_electron_pt_33),np.array(self.qjet.image_muon_pt_33),np.array(self.qjet.image_photon_pt_33),np.array(self.qjet.image_chad_mult_33),np.array(self.qjet.image_nhad_mult_33),np.array(self.qjet.image_electron_mult_33),np.array(self.qjet.image_muon_mult_33),np.array(self.qjet.image_photon_mult_33)])
+          imcmult=[0.]*(625)
+          imnmult=[0.]*(625)
+          imcpt=[0.]*(625)
+          imnpt=[0.]*(625)
+          for j in range(len(self.qjet.dau_pt)):
+            """if(abs(self.qjet.dau_deta[j])>0.3):continue
+            if(abs(self.qjet.dau_dphi[j])>0.3):continue
+            etabin=25*(self.qjet.dau_deta[j]+0.3)/(2*0.3)
+            phibin=25*(self.qjet.dau_dphi[j]+0.3)/(2*0.3)
+            pix=25*int(etabin)+int(phibin)
+            if(self.qjet.dau_charge==0):
+              imnmult[pix]=imnmult[pix]+1.
+              imnpt[pix]=imnpt[pix]+self.qjet.dau_pt[j]
+            else:
+              imcmult[pix]=imcmult[pix]+1.
+              imcpt[pix]=imcpt[pix]+self.qjet.dau_pt[j]
+            #img.reshape((55,72))
+          imgs=[imcmult,imnmult,imcpt,imnpt]"""
+          #print(np.array(self.qjet.image_nhad_mult_25).max())
+          imgs.append([np.array(self.qjet.image_chad_pt_25),np.array(self.qjet.image_nhad_pt_25),np.array(self.qjet.image_electron_pt_25),np.array(self.qjet.image_muon_pt_25),np.array(self.qjet.image_photon_pt_25),np.array(self.qjet.image_chad_mult_25),np.array(self.qjet.image_nhad_mult_25),np.array(self.qjet.image_electron_mult_25),np.array(self.qjet.image_muon_mult_25),np.array(self.qjet.image_photon_mult_25)])
         if("r" in self.rc):
           dau_pt=self.qjet.dau_pt
           dau_deta=self.qjet.dau_deta
           dau_dphi=self.qjet.dau_dphi
+          dausort=sorted(range(len(dau_pt)),key=lambda k: pow(dau_deta[k],2)+pow(dau_dphi[k],2),reverse=False)
+          #dausort=range(len(dau_pt))
+          #dausort=sorted(range(len(dau_pt)),key=lambda k: dau_pt[k],reverse=True)
+          for j in range(len(dau_deta)):
+            dau_deta[j]=self.qjet.dau_deta[j]+self.qjet.eta
+            dau_dphi[j]=self.qjet.dau_dphi[j]+self.qjet.phi
           dau_charge=self.qjet.dau_charge
           dau_pid=self.qjet.dau_pid
           dau_is_e=np.zeros(len(dau_pid))
@@ -148,7 +174,6 @@ class jetiter(object):
             elif(abs(dau_pid[t])==22):dau_is_r[t]=1.
             elif(dau_charge[t]==0):dau_is_nhad[t]=1.
             else:dau_is_chad[t]=1.
-          dausort=range(len(dau_pt))
           maxdaupt=1.
           maxdaudeta=1.
           maxdaudphi=1.
@@ -159,10 +184,10 @@ class jetiter(object):
           maxdaum=1.
           maxdaup=1.
           if(self.scale==1):
-            daus=preprocessing.normalize([[dau_pt[dausort[i]]/maxdaupt, dau_deta[dausort[i]]/maxdaudeta, dau_dphi[dausort[i]]/maxdaudphi, dau_charge[dausort[i]]/maxdaucharge] if len(dau_pt)>i else [0.,0.,0.,0.] for i in range(self.channel)],axis=0)
+            daus=preprocessing.normalize([[dau_pt[dausort[j]]/maxdaupt, dau_deta[dausort[j]]/maxdaudeta, dau_dphi[dausort[j]]/maxdaudphi, dau_charge[dausort[j]]/maxdaucharge] if len(dau_pt)>j else [0.,0.,0.,0.] for j in range(self.channel)],axis=0)
             seqs.append(daus)
           else: 
-            seqs.append([[dau_pt[dausort[i]]/maxdaupt, dau_deta[dausort[i]]/maxdaudeta, dau_dphi[dausort[i]]/maxdaudphi, dau_charge[dausort[i]]/maxdaucharge, dau_is_e[dausort[i]]/maxdaue, dau_is_mu[dausort[i]]/maxdaum, dau_is_r[dausort[i]]/maxdaup, dau_is_chad[dausort[i]]/maxdauc, dau_is_nhad[dausort[i]]/maxdaun] if len(dau_pt)>i else [0.,0.,0.,0.,0.,0.,0.,0.,0.] for i in range(self.channel)])
+            seqs.append([[dau_pt[dausort[j]]/maxdaupt, dau_deta[dausort[j]]/maxdaudeta, dau_dphi[dausort[j]]/maxdaudphi, dau_charge[dausort[j]]/maxdaucharge, dau_is_e[dausort[j]]/maxdaue, dau_is_mu[dausort[j]]/maxdaum, dau_is_r[dausort[j]]/maxdaup, dau_is_chad[dausort[j]]/maxdauc, dau_is_nhad[dausort[j]]/maxdaun] if len(dau_pt)>j else [0.,0.,0.,0.,0.,0.,0.,0.,0.] for j in range(self.channel)])
       if(len(pids)==stride):
         eveset.append(pairset[pair])
         bdtset.append(bdts)
@@ -181,21 +206,27 @@ class jetiter(object):
       count2+=1
       ##label q=1 g=0
       self.b+=stride
+      while(self.b<self.qEnd):
+        self.qjet.GetEntry(self.b)
+        if(self.qjet.event==event):
+          self.b+=1
+        else:
+          break
       """
       qptset.append(self.qjet.pt)
       qetaset.append(self.qjet.eta)
       qpidset.append(self.qjet.parton_id)
       if("c" in self.rc):
-        maxchadpt=1.*sum(self.qjet.image_chad_pt_33)/self.normb
-        maxnhadpt=1.*sum(self.qjet.image_nhad_pt_33)/self.normb
-        maxelecpt=1.*sum(self.qjet.image_electron_pt_33)/self.normb
-        maxmuonpt=1.*sum(self.qjet.image_muon_pt_33)/self.normb
-        maxphotonpt=1.*sum(self.qjet.image_photon_pt_33)/self.normb
-        maxchadmult=1.*sum(self.qjet.image_chad_mult_33)/self.normb
-        maxnhadmult=1.*sum(self.qjet.image_nhad_mult_33)/self.normb
-        maxelecmult=1.*sum(self.qjet.image_electron_mult_33)/self.normb
-        maxmuonmult=1.*sum(self.qjet.image_muon_mult_33)/self.normb
-        maxphotonmult=1.*sum(self.qjet.image_photon_mult_33)/self.normb
+        maxchadpt=1.*sum(self.qjet.image_chad_pt_25)/self.normb
+        maxnhadpt=1.*sum(self.qjet.image_nhad_pt_25)/self.normb
+        maxelecpt=1.*sum(self.qjet.image_electron_pt_25)/self.normb
+        maxmuonpt=1.*sum(self.qjet.image_muon_pt_25)/self.normb
+        maxphotonpt=1.*sum(self.qjet.image_photon_pt_25)/self.normb
+        maxchadmult=1.*sum(self.qjet.image_chad_mult_25)/self.normb
+        maxnhadmult=1.*sum(self.qjet.image_nhad_mult_25)/self.normb
+        maxelecmult=1.*sum(self.qjet.image_electron_mult_25)/self.normb
+        maxmuonmult=1.*sum(self.qjet.image_muon_mult_25)/self.normb
+        maxphotonmult=1.*sum(self.qjet.image_photon_mult_25)/self.normb
         if(self.unscale==1 or maxchadpt==0):maxchadpt=1.
         if(self.unscale==1 or maxnhadpt==0):maxnhadpt=1.
         if(self.unscale==1 or maxelecpt==0):maxelecpt=1.
@@ -206,7 +237,7 @@ class jetiter(object):
         if(self.unscale==1 or maxelecmult==0):maxelecmult=1.
         if(self.unscale==1 or maxmuonmult==0):maxmuonmult=1.
         if(self.unscale==1 or maxphotonmult==0):maxphotonmult=1.
-        qjetset.append([(np.array(self.qjet.image_chad_pt_33)/maxchadpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_nhad_pt_33)/maxnhadpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_electron_pt_33)/maxelecpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_muon_pt_33)/maxmuonpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_photon_pt_33)/maxphotonpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_chad_mult_33)/maxchadmult).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_nhad_mult_33)/maxnhadmult).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_electron_mult_33)/maxelecmult).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_muon_mult_33)/maxmuonmult).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_photon_mult_33)/maxphotonmult).reshape(2*arnum+1,2*arnum+1)])
+        qjetset.append([(np.array(self.qjet.image_chad_pt_25)/maxchadpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_nhad_pt_33)/maxnhadpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_electron_pt_33)/maxelecpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_muon_pt_33)/maxmuonpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_photon_pt_33)/maxphotonpt).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_chad_mult_33)/maxchadmult).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_nhad_mult_33)/maxnhadmult).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_electron_mult_33)/maxelecmult).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_muon_mult_33)/maxmuonmult).reshape(2*arnum+1,2*arnum+1),(np.array(self.qjet.image_photon_mult_33)/maxphotonmult).reshape(2*arnum+1,2*arnum+1)])
       if("r" in self.rc):
         dau_pt=self.qjet.dau_pt
         dau_deta=self.qjet.dau_deta

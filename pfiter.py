@@ -112,6 +112,7 @@ class jetiter(object):
       leta=[]
       lphi=[]
       lpt=[]
+      lmt=[]
       for ii in xrange(numjet):
         self.qjet.GetEntry(self.b+ii)
         if(self.eta>abs(self.qjet.eta) or self.eta+self.etabin<abs(self.qjet.eta)):
@@ -135,6 +136,7 @@ class jetiter(object):
           leta.append(self.qjet.eta)
           lphi.append(self.qjet.phi)
           lpt.append(self.qjet.pt)
+          lmt.append(1.*self.qjet.chad_mult+self.qjet.electron_mult+self.qjet.muon_mult+self.qjet.nhad_mult+self.qjet.photon_mult)
         # qq 3 qg 1 gq 2 gg 0
         if(ii==0):
           event=self.qjet.event
@@ -182,6 +184,7 @@ class jetiter(object):
         njset.append(numjet)
         bdts.append(np.math.sqrt(pow(leta[0]-leta[1],2)+pow(lphi[0]-lphi[1],2)))
         bdts.append(lpt[0]/lpt[1])
+        bdts.append(lmt[0]/lmt[1])
         bdtset.append(bdts)
         labelset.append([qgto10[pair[0]],qgto10[pair[1]]])
         ptset.append(pts)

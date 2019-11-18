@@ -3,6 +3,9 @@ import numpy as np
 import matplotlib as mpl
 mpl.rcParams['hatch.linewidth']=2.0
 import matplotlib.pyplot as plt
+fs=25
+plt.rc('xtick',labelsize=int(fs*.8))
+plt.rc('ytick',labelsize=int(fs*.8))
 import ROOT as rt
 from ROOT import TH1F,TColor
 import os
@@ -132,7 +135,7 @@ class BinaryClassifierResponse(object):
         print(zghist.GetEntries())
         fs=25
         plt.figure(figsize=(12,8))   
-        plt.title("jet $p_T$ range {}~{}GeV".format(pt,int(pt*1.1)),fontdict={"weight":"bold","size":fs*1.})
+        plt.title("jet $p_T$ range {}~{} GeV".format(pt,int(pt*1.1)),fontdict={"weight":"bold","size":fs*1.})
         plt.ylabel("Fraction of Events",fontsize=fs*1.3)
         if(var=='eta'):
           xax=np.append(np.arange(-2.4,2.4,((-dqhist.GetBinLowEdge(0)+dqhist.GetBinLowEdge(res))/res))[:res],2.4)
@@ -144,7 +147,7 @@ class BinaryClassifierResponse(object):
           #plt.plot(xax,np.append(dg,0),label=r"pp$\rightarrow$gg",color='C1',drawstyle='steps-post',linewidth=3,linestyle='--',alpha=0.6)
           plt.plot(xax,np.append(zg,0),label=r"pp$\rightarrow$zg",color='red',drawstyle='steps-post',linewidth=3,linestyle='--')
         else:
-          if("chad" in var):plt.xlabel("Charged particle multiplicity",fontsize=fs*1.)
+          if("chad" in var):plt.xlabel("Charged Particle Multiplicity",fontsize=fs*1.)
           elif("ptd" in var):plt.xlabel("jet $p_TD$",fontsize=fs*1.3)
           elif("axis" in var):plt.xlabel("jet {}".format(var),fontsize=fs*1.3)
           else:plt.xlabel("jet $p_T$(GeV)",fontsize=fs*1.3)
@@ -168,8 +171,9 @@ class BinaryClassifierResponse(object):
 #pts=[100]
 #pts=[100,200,500,1000]
 pts=[100,200,500,1000]
-#pts=[100,1000]
+#pts=[200,1000]
 varl=["eta","pt","ptd","major_axis","chad_mult"]
+#
 #varl=["chad_mult"]
 for pt in pts:
   for var in varl:

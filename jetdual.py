@@ -32,14 +32,12 @@ parser.add_argument("--mod",type=int,default=0,help='end ratio')
 parser.add_argument("--seed",type=str,default="",help='seed of model')
 args=parser.parse_args()
 import os
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu) 
 import keras
 from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Flatten, Embedding
 from keras.layers import Conv2D, MaxPooling2D, SimpleRNN
 from keras import backend as K
-from keras.utils import plot_model
+#from keras.utils import plot_model
 from jetiter import *
 import numpy as np
 import tensorflow as tf
@@ -48,9 +46,12 @@ from importlib import import_module
 from sklearn.utils import shuffle
 import datetime
 start=datetime.datetime.now()
-config =tf.ConfigProto()
-config.gpu_options.per_process_gpu_memory_fraction=0.35
-set_session(tf.Session(config=config))
+if(args.gpu!=-1):
+  os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+  os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu)
+  config =tf.ConfigProto()
+  config.gpu_options.per_process_gpu_memory_fraction=0.4
+  set_session(tf.Session(config=config))
 
 batch_size = args.batch_size
 num_classes = 2 
@@ -97,21 +98,22 @@ model.compile(loss=losses,
               optimizer=keras.optimizers.SGD(),
               metrics=['accuracy'])
 """
-savename='save/'+str(args.save)
+savename='/home/yulee/keras/save/'+str(args.save)
 os.system("mkdir "+savename)
 os.system("rm "+savename+'/log.log')
-plot_model(model,to_file=savename+'/model.png')
+#plot_model(model,to_file=savename+'/model.png')
 print("### plot done ###")
 import logging
 logging.basicConfig(filename=savename+'/log.log',level=logging.DEBUG)
 logging.info(str(args))
 logging.info(str(datetime.datetime.now()))
 checkpoint=keras.callbacks.ModelCheckpoint(filepath=savename+'/check_{epoch}',monitor='val_loss',verbose=0,save_best_only=False,mode='auto',period=1)
-loaded=np.load("jjtt{}.npz".format(args.pt))
 if(args.network=="cnn"):
+  loaded=np.load("/home/yulee/keras/jjnc{}.npz".format(args.pt))
   X=loaded["imgset"]
 else:
-  X=loaded["seqset"][:,:,:,:4]
+  loaded=np.load("/home/yulee/keras/jj25dr{}.npz".format(args.pt))
+  X=loaded["seqset"][:,:,:,:]
 Y=loaded["labelset"]
 
 Xv=X[:2,int(90000*0.7):90000]
@@ -158,5 +160,111 @@ print (datetime.datetime.now()-start)
 logging.info("spent time "+str(datetime.datetime.now()-start))
 logging.info("python jetdualpred.py --save {} --pt {} --stride {} --gpu {} --mod {}".format(args.save,args.pt,args.stride,args.gpu,args.mod))
 
-if(args.pred==1):os.system("python jetdualpred.py --save {} --pt {} --stride {} --gpu {} --mod {}".format(args.save,args.pt,args.stride,args.gpu,args.mod))
-#python jetdualpred.py --save dualn2500 --pt 500 --stride 2 --gpu 3
+if(args.pred==1):
+  #os.system("python /home/yulee/keras/jetdualpred.py --save {} --pt {} --stride {} --gpu {} --mod {}".format(args.save,args.pt,args.stride,args.gpu,args.mod))
+  savename="/home/yulee/keras/save/"+str(args.save)
+  history=open(savename+"/history").readlines()
+  try:
+    try:
+      hist=eval(history[0])
+      #a=hist['val1_auc']
+      a=hist['val_loss']
+    except:
+      hist=eval(history[0])
+      #a=hist['val1_auc']
+      a=hist['val_loss']
+  except:
+    sepoch=eval(history[0])
+    hist=eval(history[1])
+  from sklearn.metrics import roc_auc_score, auc, roc_curve
+  if(args.isz==0):iii=1
+  if(args.isz==1):iii=2
+  if(args.isz==-1):iii=3
+  epoch=hist['val_loss'.format(iii)].index(min(hist['val_loss'.format(iii)]))+1
+  try:
+    epoch=hist['val_loss'.format(iii)].index(min(hist['val_loss'.format(iii)]))+1
+    model=keras.models.load_model(savename+"/check_"+str(epoch))
+  except:
+    epoch=sepoch+1
+    model=keras.models.load_model(savename+"/check_"+str(epoch))
+  rc=""
+  for sha in model._feed_inputs:
+    if(sha._keras_shape[-1]==33*33):
+      rc+="c"
+    if(sha._keras_shape[-1]==33):
+      rc+="c"
+  onehot=0
+  if("c" in rc):
+    X=loaded["imgset"]
+  else:
+    X=loaded["seqset"][:2,:,:,:]
+  Y=loaded["labelset"]
+  X=X[:2,90000:122000]
+  Y=Y[:2,90000:122000]
+  f=rt.TFile("{}/get.root".format(savename),"recreate")
+  qs=[]
+  gs=[]
+  p=array('f',[0.])
+  pt=array('f',[0.])
+  eta=array('f',[0.])
+  pid=array('f',[0.])
+  trees={}
+  for i in range(2):
+    for jetid in ["q","g"]:
+      trees["{}{}".format(jetid,i)]=rt.TTree("{}{}".format(jetid,i+1),"{}{} tree".format(jetid,i+1))
+      trees["{}{}".format(jetid,i)].Branch("p",p,"p/F")
+      trees["{}{}".format(jetid,i)].Branch("pt",pt,"pt/F")
+      trees["{}{}".format(jetid,i)].Branch("eta",eta,"eta/F")
+      trees["{}{}".format(jetid,i)].Branch("pid",pid,"pid/F")
+  label1=Y[0]
+  label2=Y[1]
+  if(args.stride==1):
+    X=X.reshape((-1,10,33*33))
+    Y=Y.reshape((-1,2))
+  x=[]
+  y=[]
+  g=[]
+  q=[]
+  if(args.stride==1):bp=model.predict(X,verbose=0)
+  if(args.stride==2):bp=model.predict([X[0],X[1]],verbose=0)
+  bpt=loaded["ptset"][:2,90000:122000]
+  beta=loaded["etaset"][:2,90000:122000]
+  bpid=loaded["pidset"][:2,90000:122000]
+  chek=[]
+  if(args.stride==2):
+    if(args.mod==0):leng= len(bp[0])
+    else:leng=len(bp)
+    for i in range(leng):
+      for j in range(args.stride):
+        if(label1[i][j]==1):
+          if(args.mod==0):p[0]=bp[0][i][j]
+          else:p[0]=bp[i][2*j]+bp[i][2*j+1]
+          pt[0]=bpt[0][i]
+          eta[0]=beta[0][i]
+          pid[0]=bpid[0][i]
+          trees["{}{}".format(["q","g"][j],0)].Fill()
+        if(label2[i][j]==1):
+          if(args.mod==0):p[0]=bp[1][i][j]
+          else:p[0]=bp[i][j]+bp[i][2+j]
+          pt[0]=bpt[1][i]
+          eta[0]=beta[1][i]
+          pid[0]=bpid[1][i]
+          trees["{}{}".format(["q","g"][j],1)].Fill()
+  f.Write()
+  f.Close()
+  if(args.stride==1):
+    line1="{} roc {} ".format(args.save,round(roc_auc_score(Y[:,0],bp[:,0]),5))
+    print(line1)
+    f=open("/home/yulee/keras/mergelog","a")
+    f.write(line1)
+  if(args.stride==2):
+    line1="{} roc 12 {} {} mean {} ".format(args.save,round(roc_auc_score(label1[:,0],bp[0][:,0]),5),round(roc_auc_score(label2[:,0],bp[1][:,0]),5),round(roc_auc_score(np.concatenate([label1[:,0],label2[:,0]]),np.concatenate([bp[0][:,0],bp[1][:,0]])),5))
+    score1=round(roc_auc_score(label1[:,0],bp[0][:,0]),5)
+    bp=model.predict([X[0],X[0]],verbose=0)
+    line2="{} roc 11 {} {} {} \n".format(args.save,round(roc_auc_score(label1[:,0],bp[0][:,0]),5),round(roc_auc_score(label1[:,0],bp[1][:,0]),5),score1-round(roc_auc_score(label1[:,0],bp[0][:,0]),5))
+    print(line1)
+    print(line2)
+    f=open("/home/yulee/keras/mergelog","a")
+    f.write(line1)
+    f.write(line2)
+    f.close()

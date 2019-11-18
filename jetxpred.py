@@ -33,13 +33,20 @@ os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu)
 batch_size=args.batch_size
 #genv=valid1.next()
 #epoch=eval(open(savename+"/history").readline())+1
-loaded=np.load("jjtt{}.npz".format(args.pt))
-X=loaded["bdtset"][:,:5*args.stride]
-Y=loaded["labelset"]
-Xv=X[int(90000*0.7):90000]
-Yv=Y[0,int(90000*0.7):90000,0]
-Xt=X[90000:126000]
-Yt=Y[0,90000:126000,0]
+loaded=np.load("pf{}.npz".format(args.pt))
+#X=loaded["bdtset"][:,:]
+if(args.stride==3):X=loaded["bdtset"][:,:]
+#else:X=loaded["bdtset"][:,:5*args.stride]
+else:X=loaded["bdtset"][:,5*(args.stride-1):10]
+#Y=loaded["labelset"][0,:,0]
+Y=loaded["labelset"][:,1,0]
+Xv=X[int(80000*0.7):80000]
+#Xv=np.concatenate([Xv,loaded["bdtset"][int(80000*0.7):80000,10:]],axis=1)
+Yv=Y[int(80000*0.7):80000]
+Xt=X[80000:111000]
+#Xt=np.concatenate([Xt,loaded["bdtset"][80000:111000,10:]],axis=1)
+
+Yt=Y[80000:111000]
 #xv,yv=next(genv)
 #xv=np.array(xv[0])
 #yv=np.array(yv[:,0])
@@ -99,12 +106,16 @@ plt.hist(g,bins=50,weights=np.ones_like(g),histtype='step',alpha=0.5,label='vg')
 #xz,yz=next(genz)
 #xq,yq=next(genq)
 bpy=model.predict_proba(Xt)[:,1]
-bpt=loaded["ptset"][0,90000:126000]
-beta=loaded["etaset"][0,90000:126000]
+#bpt=loaded["ptset"][0,80000:101000]
+#beta=loaded["etaset"][0,80000:101000]
+bpt=loaded["ptset"][80000:111000]
+beta=loaded["etaset"][80000:111000]
 for i in range(len(bpy)):
   p[0]=bpy[i]
-  pt[0]=bpt[i]
-  eta[0]=beta[i]
+  #pt[0]=bpt[i]
+  #eta[0]=beta[i]
+  pt[0]=bpt[i][0]
+  eta[0]=beta[i][0]
   if(Yt[i]==1):
     dg.Fill()
   if(Yt[i]==0):
@@ -112,6 +123,10 @@ for i in range(len(bpy)):
 f.Write()
 f.Close()
 print("score ",roc_auc_score(Yt,bpy),Xt.shape)
+f=open("mergelog","a")
+line1="bdt {} {} {}\n".format(args.save,round(roc_auc_score(Yt,bpy),5),Xt.shape)
+f.write(line1)
+f.close()
 #t_fpr,t_tpr,thresholds=roc_curve(yz,py)
 #t_tnr=1-t_fpr
 #print(args.pt,"z",auc(t_fpr,t_tpr))

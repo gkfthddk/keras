@@ -32,8 +32,6 @@ parser.add_argument("--mod",type=int,default=0,help='end ratio')
 parser.add_argument("--seed",type=str,default="",help='seed of model')
 args=parser.parse_args()
 import os
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu) 
 import keras
 from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Flatten, Embedding
@@ -48,9 +46,12 @@ from importlib import import_module
 from sklearn.utils import shuffle
 import datetime
 start=datetime.datetime.now()
-config =tf.ConfigProto()
-config.gpu_options.per_process_gpu_memory_fraction=0.35
-set_session(tf.Session(config=config))
+if(args.gpu!=-1):
+  os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+  os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu)
+  config =tf.ConfigProto()
+  config.gpu_options.per_process_gpu_memory_fraction=0.3
+  set_session(tf.Session(config=config))
 
 batch_size = args.batch_size
 num_classes = 2 
@@ -91,7 +92,7 @@ model.compile(loss=losses,
               optimizer=keras.optimizers.SGD(),
               metrics=['accuracy'])
 """
-savename='save/'+str(args.save)
+savename='/home/yulee/keras/save/'+str(args.save)
 os.system("mkdir "+savename)
 os.system("rm "+savename+'/log.log')
 plot_model(model,to_file=savename+'/model.png')
@@ -101,8 +102,8 @@ logging.basicConfig(filename=savename+'/log.log',level=logging.DEBUG)
 logging.info(str(args))
 logging.info(str(datetime.datetime.now()))
 checkpoint=keras.callbacks.ModelCheckpoint(filepath=savename+'/check_{epoch}',monitor='val_loss',verbose=0,save_best_only=False,mode='auto',period=1)
-loaded=np.load("pf{}.npz".format(args.pt))
-if(args.network=="cnn"):
+loaded=np.load("/home/yulee/keras/pf{}.npz".format(args.pt))
+if("c" in args.network):
   X=loaded["imgset"]
 else:
   X=loaded["seqset"][:,:,:4]
@@ -137,5 +138,5 @@ print (datetime.datetime.now()-start)
 logging.info("spent time "+str(datetime.datetime.now()-start))
 logging.info("python pfpred.py --save {} --pt {} --stride {} --gpu {} --mod {}".format(args.save,args.pt,args.stride,args.gpu,args.mod))
 
-if(args.pred==1):os.system("python pfpred.py --save {} --pt {} --stride {} --gpu {} --mod {}".format(args.save,args.pt,args.stride,args.gpu,args.mod))
+if(args.pred==1):os.system("python /home/yulee/keras/pfpred.py --save {} --pt {} --stride {} --gpu {} --mod {}".format(args.save,args.pt,args.stride,args.gpu,args.mod))
 #python jetdualpred.py --save dualn2500 --pt 500 --stride 2 --gpu 3

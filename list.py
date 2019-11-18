@@ -56,7 +56,20 @@ for f in files:
           line+="\t{:.3f}\t{}".format(j,i)
         print(line)
       except:
-        pass
+        try:
+          hist=eval(history.readline())
+          indx.append(hist['val_loss'].index(min(hist['val_loss'])))
+          #indx.append(hist['val2_auc'].index(max(hist['val2_auc'])))
+          #indx.append(hist['val3_auc'].index(max(hist['val3_auc'])))
+          acc.append(min(hist['val_loss']))
+          #acc.append(max(hist['val2_auc']))
+          #acc.append(max(hist['val3_auc']))
+          line="{}".format(f)
+          for i,j in zip(indx,acc):
+            line+="\t{:.3f}\t{}".format(j,i)
+          print(line)
+        except:
+          pass
   except:pass
 
 print datetime.datetime.now()-start

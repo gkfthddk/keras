@@ -44,16 +44,12 @@ if(args.gpu!=-1):
   set_session(tf.Session(config=config))
 
 # input image dimensions
-img_rows, img_cols = 33, 33
-
-input_shape1= (9,33,33)
-input_shape2= (20,10)
 
 #model.compile(loss=keras.losses.categorical_crossentropy,
 #              optimizer=keras.optimizers.Adadelta(),
 #              metrics=['accuracy'])
 #model=keras.models.load_model('save/fullydijetsame_10')
-savename="save/"+str(args.save)
+savename="/home/yulee/keras/save/"+str(args.save)
 history=open(savename+"/history").readlines()
 try:
   try:
@@ -82,12 +78,12 @@ except:
   model=keras.models.load_model(savename+"/check_"+str(epoch))
 rc=""
 for sha in model._feed_inputs:
-  if(sha._keras_shape[-1]==33*33):
+  if(sha._keras_shape[-1]==55*72):
     rc+="c"
-  if(sha._keras_shape[-1]==33):
+  if(sha._keras_shape[-1]==72):
     rc+="c"
 onehot=0
-loaded=np.load("pf{}.npz".format(args.pt))
+loaded=np.load("/home/yulee/keras/pf{}.npz".format(args.pt))
 if("c" in rc):
   X=loaded["imgset"]
 else:
@@ -97,7 +93,7 @@ X=X[80000:101000]
 Y=Y[80000:101000]
 #epoch=eval(open(savename+"/history").readline())+1
 #if(args.epoch==None):
-f=rt.TFile("{}/getd.root".format(savename),"recreate")
+f=rt.TFile("{}/get.root".format(savename),"recreate")
 #else:
 #  f=rt.TFile("{}/{}get.root".format(savename,args.epoch),"recreate")
 qs=[]
@@ -204,7 +200,7 @@ f.Close()
 if(args.stride==1):
   line1="{} roc {} ".format(args.save,round(roc_auc_score(Y[:,0],bp[:,0]),5))
   print(line1)
-  f=open("mergelog","a")
+  f=open("/home/yulee/keras/mergelog","a")
   f.write(line1)
 if(args.stride==2):
   line1="{} roc 12 {} {} mean {} \n".format(args.save,round(roc_auc_score(label1[:,0],bp[0][:,0]),5),round(roc_auc_score(label2[:,0],bp[1][:,0]),5),round(roc_auc_score(np.concatenate([label1[:,0],label2[:,0]]),np.concatenate([bp[0][:,0],bp[1][:,0]])),5))
@@ -213,7 +209,7 @@ if(args.stride==2):
   #line2="{} roc 11 {} {} {} \n".format(args.save,round(roc_auc_score(label1[:,0],bp[0][:,0]),5),round(roc_auc_score(label1[:,0],bp[1][:,0]),5),score1-round(roc_auc_score(label1[:,0],bp[0][:,0]),5))
   print(line1)
   #print(line2)
-  f=open("mergelog","a")
+  f=open("/home/yulee/keras/mergelog","a")
   f.write(line1)
   #f.write(line2)
   f.close()

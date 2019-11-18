@@ -2,10 +2,11 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-#nl=['asuzqcnn{}ptonlyptcut','asuqqcnn{}ptonlyptcut','asuzjcnn{}ptonly3ptcut','asuzjcnn{}ptonly3ptcut']
-nl=['asuzqcnn{}ptetaptcut','asuqqcnn{}ptetaptcut','asuzjcnn{}ptptcut','asuzjcnn{}ptptcut']
+nl=['asuzqcnn{}ptonlyptcut','asuqqcnn{}ptonlyptcut','asuzjcnn{}ptonly3ptcut','asuzjcnn{}ptonly3ptcut']
+#nl=['asuzqcnn{}ptetaptcut','asuqqcnn{}ptetaptcut','asuzjcnn{}ptptcut','asuzjcnn{}ptptcut']
+#nl=['npzzqcnn{}ptetaptcut','npzqqcnn{}ptetaptcut','npzzqbdt{}ptetaptcut','npzqqbdt{}ptetaptcut']
 
-name="purepteta"
+name="asupurept"
 
 ne=["Z+jet","dijet","Z+jet","dijet"]
 #event=["Z+jet"]
@@ -15,8 +16,12 @@ aucs=[]
 for j in range(0,2):
   for i in range(len(nl)):
     aucs.append({"Z+jet":[],"dijet":[],"Z+jet05":[],"dijet05":[]})
-    if("zq" in nl[i] and j==1):continue
-    if("qq" in nl[i] and j==0):continue
+    if("npz" in nl[i]):
+      if("npzzq" in nl[i] and j==1):continue
+      if("npzqq" in nl[i] and j==0):continue
+    else:
+      if("zq" in nl[i] and j==1):continue
+      if("qq" in nl[i] and j==0):continue
     for pt in [100,200,500,1000]:
       print("aucs/"+nl[i].format(pt))
       dic=eval(open("aucs/"+nl[i].format(pt)).readline())
@@ -26,7 +31,7 @@ for j in range(0,2):
 fs=25
 plt.figure(figsize=(12, 8))
 plt.ylabel("ROC AUC",fontsize=fs*1.3)
-plt.xlabel("$p_T$ Range(GeV)",fontsize=fs*1.3)
+plt.xlabel("$p_T$ Range (GeV)",fontsize=fs*1.3)
 cl=['C0','C0','C1','C1']
 #ll=['BDT-ptcut-','CNN-ptcut-','BDT-ptetacut-','CNN-ptetacut-','RNN-',]
 #ll=['pt-','31-','21-','331-']
@@ -43,7 +48,7 @@ for i in range(len(nl)):
         ':',linewidth=3,label=ll[i]+ne[i],marker=mak[i],
         fillstyle='none',color=cl[i],markersize=fs*ms[i])
 
-plt.xticks([105,210,525,1050],["100\n~110","200\n~220","500\n~550","1000\n~1100"],size=fs*0.8)
+plt.xticks([105,210,525,1050],["100\n~120","200\n~240","500\n~600","1000\n~1200"],size=fs*0.8)
 plt.yticks([0.80,0.82,0.84,0.86,0.88,0.90],size=fs)
 plt.grid(alpha=0.6)
 plt.legend(fontsize=fs*0.88,ncol=2,loc=8)

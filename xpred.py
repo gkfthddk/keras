@@ -37,9 +37,6 @@ vzgdata="Data/zg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
 vqqdata="Data/qq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
 vggdata="Data/gg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
 
-if(args.isz==0):iii=1
-if(args.isz==1):iii=2
-if(args.isz==-1):iii=3
 rc=""
 onehot=0
 if(args.isz==0):
@@ -50,6 +47,10 @@ if(args.isz==0):
 elif(args.isz==1):
   tqdata="Data/zq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
   tgdata="Data/zg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+  train=wkiter([tqdata,tgdata],batch_size=batch_size,begin=0.6*args.end,end=args.end*1.,istrain=1,rc=rc,onehot=onehot,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
+else:
+  tqdata="Data/qq_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
+  tgdata="Data/gg_pt_{0}_{1}.root".format(args.pt,int(args.pt*1.1))
   train=wkiter([tqdata,tgdata],batch_size=batch_size,begin=0.6*args.end,end=args.end*1.,istrain=1,rc=rc,onehot=onehot,etabin=args.etabin,pt=args.pt,ptmin=args.ptmin,ptmax=args.ptmax)
 test2=wkiter([vzqdata,vzgdata],batch_size=batch_size,begin=args.end*0.,end=args.end*0.6,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=0,etabin=2.4)
 test3=wkiter([vqqdata,vggdata],batch_size=batch_size,begin=args.end*0.,end=args.end*0.6,rc=rc,onehot=onehot,channel=args.channel,order=args.order,eta=0,etabin=2.4)

@@ -1,0 +1,18 @@
+Universe = vanilla
+getenv = True
+output = condor/loop.out
+error = condor/loop.error
+Log = condor/loop.log
+#Executable = jetdualpred.py 
+Executable = jetdual.py 
+#Executable = tfgpu.py
+
+initialdir = /home/yulee/keras
+should_transfer_files=yes
+transfer_input_files=jetiter.py,symbols
+#Arguments = --pt 500
+#Arguments = --save dualr200non --network rnn --pt 200 --epoch 30 --stride 2 --gpu -1 --pred 1 --seed non
+Arguments = --save dualr200mm --network rnn --pt 200 --epoch 30 --stride 2 --gpu -1 --pred 1 --seed con --opt adam
+request_gpus = 1
+
+Queue

@@ -2,10 +2,11 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-#nl=['asubdt{}ptonlyptcut','asuzjrnn{}ptonlyptcut','asuzjrnn{}pteta31ptcut']
-nl=['asubdt{}ptonlyptcut','asuzjcnn{}ptonlyptcut','asuzjcnn{}ptonly2ptcut']
+nl=['asubdt{}ptonlyptcut','asuzjcnn{}ptonly3ptcut','asuzjrnn{}ptonly21ptcut']
+#nl=['asubdt{}ptonlyptcut','asuzjcnn{}ptonlyptcut','asuzjcnn{}ptonly2ptcut']
 #nl2=['asubdt{}ptetaptcut','asuzjrnn{}ptonlyadamptcut','asuzjrnn{}ptetaadamptcut']
-nl2=['asubdt{}ptetaptcut','asuzjrnn{}ptptcut','asuzjrnn{}pteta21ptcut']
+nl=['asubdt{}ptetaptcut','asuzjcnn{}ptptcut','asuzjrnn{}pteta21ptcut']
+nl2=['asubdt{}ptetaptcut','asuzjcnn{}ptptcut','asuzjrnn{}pteta21ptcut']
 
 event=["Z+jet","dijet","Z+jet05","dijet05"]
 aucs=[]
@@ -25,7 +26,7 @@ for j in range(2):
 fs=25
 plt.figure(figsize=(12, 8))
 plt.ylabel("ROC AUC",fontsize=fs*1.3)
-plt.xlabel("$p_T$ Range(GeV)",fontsize=fs*1.3)
+plt.xlabel("$p_T$ Range (GeV)",fontsize=fs*1.3)
 cl=['C2','C0','C1','C3']
 #nl=['asubdt{}ptonlyptcut','asuzjcnn{}ptonlyptcut','asubdt{}ptptcut','asuzjcnn{}ptptcut',]#'asuzjrnn{}ptonlypt']
 #nl=['asuzjrnn{}ptptcut','asuzjrnn{}ptonly31ptcut','asuzjrnn{}ptonlyptcut']
@@ -54,15 +55,16 @@ for j in range(2):
           fillstyle='none',color=cl[i],markersize=fs*ms[i])
 
 plt.xticks([105,210,525,1050],["100\n~110","200\n~220","500\n~550","1000\n~1100"],size=fs*0.8)
-plt.yticks([0.8,0.81,0.82,0.83,0.84,0.85,0.86,0.87],size=fs)
+plt.yticks([0.78,0.80,0.82,0.84,0.86,0.88],size=fs)
+#plt.yticks([0.8,0.81,0.82,0.83,0.84,0.85,0.86,0.87],size=fs)
 plt.grid(alpha=0.6)
 plt.legend(fontsize=fs*0.88,ncol=2,loc=8)
 #a1,a2,b1,b2=plt.axis()
 #plt.axis((a1,a2,0.81,0.87))
 #plt.title("cnnetacut")
 #plt.show()
-plt.savefig("plots/allptcut.pdf",bbox_inches='tight',pad_inches=0.5,dpi=300)
-plt.savefig("plots/allptcut.png",bbox_inches='tight',pad_inches=0.5,dpi=300)
+plt.savefig("plots/allptetacut.pdf",bbox_inches='tight',pad_inches=0.5,dpi=300)
+plt.savefig("plots/allptetacut.png",bbox_inches='tight',pad_inches=0.5,dpi=300)
 
 
 plt.show()

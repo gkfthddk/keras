@@ -53,7 +53,7 @@ input_shape2= (20,10)
 #              optimizer=keras.optimizers.Adadelta(),
 #              metrics=['accuracy'])
 #model=keras.models.load_model('save/fullydijetsame_10')
-savename="save/"+str(args.save)
+savename="/home/yulee/keras/save/"+str(args.save)
 history=open(savename+"/history").readlines()
 try:
   try:
@@ -87,17 +87,18 @@ for sha in model._feed_inputs:
   if(sha._keras_shape[-1]==33):
     rc+="c"
 onehot=0
-loaded=np.load("jjtt{}.npz".format(args.pt))
 if("c" in rc):
+  loaded=np.load("/home/yulee/keras/jjnc{}.npz".format(args.pt))
   X=loaded["imgset"]
 else:
-  X=loaded["seqset"][:2,:,:,:4]
+  loaded=np.load("/home/yulee/keras/jj25dr{}.npz".format(args.pt))
+  X=loaded["seqset"][:2,:,:,:]
 Y=loaded["labelset"]
-X=X[:2,90000:126000]
-Y=Y[:2,90000:126000]
+X=X[:2,90000:122000]
+Y=Y[:2,90000:122000]
 #epoch=eval(open(savename+"/history").readline())+1
 #if(args.epoch==None):
-f=rt.TFile("{}/getd.root".format(savename),"recreate")
+f=rt.TFile("{}/get.root".format(savename),"recreate")
 #else:
 #  f=rt.TFile("{}/{}get.root".format(savename,args.epoch),"recreate")
 qs=[]
@@ -205,7 +206,7 @@ f.Close()
 if(args.stride==1):
   line1="{} roc {} ".format(args.save,round(roc_auc_score(Y[:,0],bp[:,0]),5))
   print(line1)
-  f=open("mergelog","a")
+  f=open("/home/yulee/keras/mergelog","a")
   f.write(line1)
 if(args.stride==2):
   line1="{} roc 12 {} {} mean {} ".format(args.save,round(roc_auc_score(label1[:,0],bp[0][:,0]),5),round(roc_auc_score(label2[:,0],bp[1][:,0]),5),round(roc_auc_score(np.concatenate([label1[:,0],label2[:,0]]),np.concatenate([bp[0][:,0],bp[1][:,0]])),5))
@@ -214,7 +215,7 @@ if(args.stride==2):
   line2="{} roc 11 {} {} {} \n".format(args.save,round(roc_auc_score(label1[:,0],bp[0][:,0]),5),round(roc_auc_score(label1[:,0],bp[1][:,0]),5),score1-round(roc_auc_score(label1[:,0],bp[0][:,0]),5))
   print(line1)
   print(line2)
-  f=open("mergelog","a")
+  f=open("/home/yulee/keras/mergelog","a")
   f.write(line1)
   f.write(line2)
   f.close()

@@ -53,38 +53,73 @@ if("npz" in args.savename):
 pt=args.pt
 res=100
 #os.system("ls save/"+args.savename+"/get.root")
-if("bdt" in args.savename):f=rt.TFile("xgb/"+args.savename+"get.root",'read')
-else:f=rt.TFile("save/"+args.savename+"/getd.root",'read')
-tree={}
-for i in range(2):
-  tree["q{}".format(i+1)]=f.Get("q{}".format(i+1))
-  tree["g{}".format(i+1)]=f.Get("g{}".format(i+1))
-  mv=0
-  y=[]
-  p=[]
-  for j in ["q{}","g{}"]:
-    tr=j.format(i+1)
-    for k in range(tree[tr].GetEntries()):
-      tree[tr].GetEntry(k)
-      if(abs(tree[tr].pt)>args.pt*args.ptmax or abs(tree[tr].pt)<args.pt*args.ptmin):continue
-      if(abs(tree[tr].eta)>args.eta+args.etabin or abs(tree[tr].eta)<args.eta):continue
-      if(j=="q{}"):
-        y.append(1)
-        p.append(tree[tr].p)
-      if(j=="g{}"):
-        y.append(0)
-        p.append(1.-tree[tr].p)
-  sem=scipy.stats.sem(p)
-  fpr,tpr,thresholds=roc_curve(y,p)
-  tnr=1-fpr
-  diff=1.
-  diffi=0
-  for j in range(len(tpr)):
-    if(abs(tpr[j]-0.5)<diff):
-      diff=abs(tpr[j]-0.5)
-      diffi=j
-  print(args.savename,i+1,round(roc_auc_score(y,p),3),round(fpr[diffi],5),diffi)
-f.Close()
-#except:
-#  pass
+if(args.gaus):
+  jgaus=eval(open("jjgaus.txt").readline())
+  g2aus=eval(open("zjgaus.txt").readline())
+  lgaus=[jgaus,zgaus]
+for num in range(1,2):
+  #try:
+    if("bdt" in args.savename):f=rt.TFile("xgb/"+args.savename+"get.root",'read')
+    else:f=rt.TFile("save/"+args.savename+"/get.root",'read')
+    q1=f.Get("q1")
+    q2=f.Get("q2")
+    g1=f.Get("g1")
+    g2=f.Get("g2")
+    tree=[q1,q2,g1,g2]
+    lab=["First","Second"]
+    wr=open("aucs/{}{}".format(args.savename,args.get),'w')
+    wr.write("{")
+    mv=0
+    for k in range(2):
+      if("npz" in args.savename):
+        if("npzzq" in args.savename and k==0):continue
+        if("npzqq" in args.savename and k==1):continue
+      else:
+        #if("q2" in args.savename and k==0):continue
+        if(q2.GetEntries()<1 and k==1):continue
+        if(q1.GetEntries()<1 and k==1):continue
+        #if("qq" in args.savename and k==1):continue
+      y=[]
+      p=[]
+      for i in range(2):
+        print(tree[i*2+k].GetEntries())
+        for j in range(tree[i*2+k].GetEntries()):
+          tree[i*2+k].GetEntry(j)
+          if(abs(tree[i*2+k].pt)>args.pt*args.ptmax or abs(tree[i*2+k].pt)<args.pt*args.ptmin):continue
+          if(abs(tree[i*2+k].eta)>args.eta+args.etabin or abs(tree[i*2+k].eta)<args.eta):continue
+          if(args.gaus):
+            if(random.random()>lgaus[k][int(250*tree[i*2+k].pt/args.pt)]):continue
+          if(i<1):
+            if(args.parton==1):
+              if(tree[i*2+k].pid!=21 and tree[i*2+k].pid!=0):
+                y.append(1)
+                p.append(tree[i*2+k].p)
+            else:
+              y.append(1)
+              p.append(tree[i*2+k].p)
+          else:
+            if(args.parton==1):
+              if(tree[i*2+k].pid==21):
+                y.append(0)
+                p.append(1-tree[i*2+k].p)
+            else:
+              y.append(0)
+              p.append(1-tree[i*2+k].p)
+      sem=scipy.stats.sem(p)
+      fpr,tpr,thresholds=roc_curve(y,p)
+      tnr=1-fpr
+      diff=1.
+      diffi=0
+      for i in range(len(tpr)):
+        if(abs(tpr[i]-0.5)<diff):
+          diff=abs(tpr[i]-0.5)
+          diffi=i
+      print(args.savename,lab[k],round(roc_auc_score(y,p),5),round(fpr[diffi],5),diffi)
+      wr.write("'{}':{},".format(lab[k],round(roc_auc_score(y,p),5)))
+      wr.write("'{}05':{},".format(lab[k],round(fpr[diffi],5)))
+      wr.write("'{}sem':{},".format(lab[k],round(sem,5)))
+    f.Close()
+    wr.write("}")
+  #except:
+  #  pass
 

@@ -72,7 +72,8 @@ class BinaryClassifierResponse(object):
         canvas = ROOT.TCanvas("c", "c", 1200, 800)
         canvas.cd()
 
-        h0 = TH1F("untitled", "", 50, 0, 1)
+        h0 = TH1F("untitled", "".format(pt,int(1.1*pt)), 50, 0, 1)
+        #h0 = TH1F("untitled", "{}~{}GeV".format(pt,int(1.1*pt)), 50, 0, 1)
         h0.SetXTitle("Model response")
         h0.SetYTitle("Normalized")
         h0.GetXaxis().SetTitleSize(0.04)
@@ -140,7 +141,7 @@ class BinaryClassifierResponse(object):
             key=self._keys[i]
             hist=hists[i]
             event, dset, cls, net = key.split("_")
-            label = "{}({} set)".format(cls.title(),event)
+            label = "{} ({} set)".format(cls.title(),event)
             option = "pl" if "training" in self._keys[i] else "lf"
             legend.AddEntry(hist, label, option)
         legend.Draw()
@@ -152,7 +153,7 @@ class BinaryClassifierResponse(object):
         canvas.SaveAs(self._path.format(ext="pdf"))
         #self.f.Close()
 
-pts=[200]
+pts=[100,200,500,1000]
 for pt in pts:
     filename="plots/cnnovertrainvs{}".format(pt)
-    a= BinaryClassifierResponse(filename,"{}~{}GeV".format(pt,int(pt*1.1)),"./",pt,"asuzjcnn{}ptonly3".format(pt),"v1t2")
+    a= BinaryClassifierResponse(filename,"{}~{}GeV".format(pt,int(pt*1.1)),"./",pt,"asu/asuzjcnn{}ptonly3".format(pt),"v1t2")

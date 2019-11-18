@@ -1,0 +1,35 @@
+Universe = vanilla
+getenv = True
+Executable = jetdual.py 
+
+initialdir = /home/yulee/keras
+should_transfer_files=yes
+transfer_input_files=jetiter.py,symbols
+request_gpus = 1
+Arguments = --save dualmrdr5200non --network rnn --pt 200 --epoch 50 --stride 2 --gpu -1 --pred 1 --seed non --opt adam
+output = condor/toop1.out
+error = condor/toop1.error
+Log = condor/toop1.log
+
+Queue
+
+Arguments = --save dualmrdr5200con --network rnn --pt 200 --epoch 50 --stride 2 --gpu -1 --pred 1 --seed con --opt adam
+output = condor/toop2.out
+error = condor/toop2.error
+Log = condor/toop2.log
+
+Queue
+
+Arguments = --save dualmrdr5200max --network rnn --pt 200 --epoch 50 --stride 2 --gpu -1 --pred 1 --seed max --opt adam
+output = condor/toop3.out
+error = condor/toop3.error
+Log = condor/toop3.log
+
+Queue
+
+Arguments = --save dualmrdr5200min --network rnn --pt 200 --epoch 50 --stride 2 --gpu -1 --pred 1 --seed min --opt adam
+output = condor/toop4.out
+error = condor/toop4.error
+Log = condor/toop4.log
+
+Queue

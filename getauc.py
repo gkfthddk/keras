@@ -5,6 +5,7 @@ import numpy as np
 import argparse
 import os
 import random
+import scipy.stats
 parser=argparse.ArgumentParser()
 parser.add_argument("--var",type=str,default="eta",help='')
 parser.add_argument("--savename",type=str,default="savemae",help='')
@@ -15,6 +16,7 @@ parser.add_argument("--ptmax",type=float,default=2.,help='')
 parser.add_argument("--pt",type=int,default=1000,help='')
 parser.add_argument("--get",type=str,default="",help='')
 parser.add_argument("--gaus",type=int,default=0,help='')
+parser.add_argument("--parton",type=int,default=0,help='')
 args=parser.parse_args()
 if("pt" in args.get):
   if(args.pt==100):
@@ -29,8 +31,8 @@ if("pt" in args.get):
   if(args.pt==1000):
     args.ptmin=0.8235
     args.ptmax=1.076
-if("eta" in args.get):
-  args.etabin=1
+#if("eta" in args.get):
+#  args.etabin=1
 if("acut" in args.get):
   if(args.pt==100):
     args.ptmin=0.815
@@ -45,6 +47,9 @@ if("acut" in args.get):
     args.ptmin=0.8235
     args.ptmax=1.076
   args.etabin=1
+if("npz" in args.savename):
+  args.ptmin=1.
+  args.ptmax=1.2
 pt=args.pt
 res=100
 #os.system("ls save/"+args.savename+"/get.root")
@@ -66,20 +71,41 @@ for num in range(1,2):
     wr.write("{")
     mv=0
     for k in range(2):
-      if("zq" in args.savename and k==0):continue
-      if("qq" in args.savename and k==1):continue
+      if("npz" in args.savename):
+        if("npzzq" in args.savename and k==0):continue
+        if("npzqq" in args.savename and k==1):continue
+      else:
+        #if("zq" in args.savename and k==0):continue
+        if(zq.GetEntries()<1 and k==1):continue
+        if(dq.GetEntries()<1 and k==1):continue
+        #if("qq" in args.savename and k==1):continue
       y=[]
       p=[]
       for i in range(2):
+        print(tree[i*2+k].GetEntries())
         for j in range(tree[i*2+k].GetEntries()):
           tree[i*2+k].GetEntry(j)
           if(abs(tree[i*2+k].pt)>args.pt*args.ptmax or abs(tree[i*2+k].pt)<args.pt*args.ptmin):continue
           if(abs(tree[i*2+k].eta)>args.eta+args.etabin or abs(tree[i*2+k].eta)<args.eta):continue
           if(args.gaus):
             if(random.random()>lgaus[k][int(250*tree[i*2+k].pt/args.pt)]):continue
-          p.append(tree[i*2+k].p)
-          if(i<1):y.append(1)
-          else:y.append(0)
+          if(i<1):
+            if(args.parton==1):
+              if(tree[i*2+k].pid!=21 and tree[i*2+k].pid!=0):
+                y.append(1)
+                p.append(tree[i*2+k].p)
+            else:
+              y.append(1)
+              p.append(tree[i*2+k].p)
+          else:
+            if(args.parton==1):
+              if(tree[i*2+k].pid==21):
+                y.append(0)
+                p.append(tree[i*2+k].p)
+            else:
+              y.append(0)
+              p.append(tree[i*2+k].p)
+      sem=scipy.stats.sem(p)
       fpr,tpr,thresholds=roc_curve(y,p)
       tnr=1-fpr
       diff=1.
@@ -91,6 +117,7 @@ for num in range(1,2):
       print(args.savename,lab[k],round(roc_auc_score(y,p),5),round(fpr[diffi],5),diffi)
       wr.write("'{}':{},".format(lab[k],round(roc_auc_score(y,p),5)))
       wr.write("'{}05':{},".format(lab[k],round(fpr[diffi],5)))
+      wr.write("'{}sem':{},".format(lab[k],round(sem,5)))
     f.Close()
     wr.write("}")
   #except:

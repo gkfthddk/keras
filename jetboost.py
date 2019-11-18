@@ -9,6 +9,7 @@ import pandas as pd
 import argparse
 from datetime import datetime
 #python jetboost.py --pt 500 --gpu 4 --save jettest
+#python jetboost.py --pt 200 --gpu 1 --save jettest2 --stride 2 --pred 1
 def timer(start_time=None):
     if not start_time:
         start_time = datetime.now()
@@ -46,12 +47,22 @@ params = {
         'learning_rate': sts.uniform(0.0010,0.500),
         'n_estimators': sts.randint(10,101)
         }
-model=xgb.XGBClassifier(objective='binary:logistic',tree_method="gpu_hist")
-loaded=np.load("jjtt{}.npz".format(args.pt))
-X=loaded["bdtset"][:,:5*args.stride]
+#model=xgb.XGBClassifier(objective='multi:softmax',tree_method="hist")
+model=xgb.XGBClassifier(objective='binary:logistic',tree_method="hist")
+#model=xgb.XGBClassifier(objective='binary:logistic',tree_method="gpu_hist")
+loaded=np.load("pf{}.npz".format(args.pt))
+if(args.stride==3):X=loaded["bdtset"][:,:]
+else:X=loaded["bdtset"][:,:5*(args.stride)]
+#else:X=loaded["bdtset"][:,5*(args.stride-1):10]
+#X=np.concatenate([X,loaded["bdtset"][:,10:]],axis=1)
+#X=loaded["bdtset"][:,:]
+#Y=loaded["eveset"]
 Y=loaded["labelset"]
-X=X[:int(90000*0.7)]
-Y=Y[0,:int(90000*0.7),0]
+X=X[:int(80000*0.7)]
+#Y=Y[:int(80000*0.7)]
+#Y=[np.argmax(i) for i in Y]
+Y=Y[:int(80000*0.7),0,0]
+#Y=Y[0,:int(80000*0.7),0]
 folds = 3
 param_comb = 100
 
@@ -81,5 +92,7 @@ results.to_csv('xgb/{}-{}.csv'.format(args.save,args.pt), index=False)
 #import pickle
 #pickle.dump(random_search.best_estimator_,open("xgb/bdt5500pickle-{}.dat".format(args.pt),'wb'))
 #random_search.best_estimator_.save_model("bdt-{}.dat".format(args.pt))
+print("train done")
 
 if(args.pred==1):os.system("python jetxpred.py --pt {} --save {} --stride {}".format(args.pt,args.save,args.stride))
+print(X.shape)
