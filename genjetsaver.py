@@ -3,7 +3,8 @@ import os
 import sys
 import subprocess
 import numpy as np
-from jetiter import *
+from geniter import *
+#from jetiter import * #image original
 from datetime import datetime
 import random
 import argparse
@@ -36,18 +37,20 @@ etabin=2.4
 ptmin=0
 ptmax=2
 print(pt,tjdata)
-#train=jetiter([tjdata],batch_size=128,istrain=1,rc="r",etabin=etabin,pt=pt,ptmin=ptmin,ptmax=ptmax,unscale=1,end=1)
-train=jetiter([tjdata],batch_size=128,istrain=1,rc="rc",etabin=etabin,pt=pt,ptmin=ptmin,ptmax=ptmax,unscale=1,end=1,channel=128)
+train=jetiter([tjdata],batch_size=128,istrain=1,rc="r",etabin=etabin,pt=pt,ptmin=ptmin,ptmax=ptmax,unscale=1,end=1,channel=128)
+#train=jetiter([tjdata],batch_size=128,istrain=1,rc="rc",etabin=etabin,pt=pt,ptmin=ptmin,ptmax=ptmax,unscale=1,end=1,channel=128)# image include
 ptset=train.ptset
 etaset=train.etaset
+phiset=train.phiset
 pidset=train.pidset
-bdtset=train.bdtset
-seqset=train.seqset
+bdtset=train.bdtset #(ent,jet1+jet2)
+seqset=train.seqset #(jet1+jet2,ent,pf,info)
 imgset=train.imgset
 labelset=train.labelset
 eveset=train.eveset
 pairlist=train.pairlist
-np.savez_compressed("/home/yulee/keras/gendr{}".format(pt),ptset=ptset,etaset=etaset,pidset=pidset,seqset=seqset,imgset=imgset,bdtset=bdtset,labelset=labelset,eveset=eveset,pairlist=pairlist)
+#np.savez_compressed("/home/yulee/keras/gendr{}".format(pt),ptset=ptset,etaset=etaset,pidset=pidset,seqset=seqset,imgset=imgset,bdtset=bdtset,labelset=labelset,eveset=eveset,pairlist=pairlist)
+np.savez_compressed("/home/yulee/keras/gendr128{}".format(pt),ptset=ptset,etaset=etaset,phiset=phiset,pidset=pidset,seqset=seqset,imgset=imgset,bdtset=bdtset,labelset=labelset,eveset=eveset,pairlist=pairlist)
 print("jj128{}".format(pt))
 label1=[]
 label2=[]

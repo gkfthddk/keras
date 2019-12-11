@@ -37,7 +37,7 @@ ptmin=0
 ptmax=2
 print(pt,tjdata)
 #train=jetiter([tjdata],batch_size=128,istrain=1,rc="r",etabin=etabin,pt=pt,ptmin=ptmin,ptmax=ptmax,unscale=1,end=1)
-train=jetiter([tjdata],batch_size=128,istrain=1,rc="rc",etabin=etabin,pt=pt,ptmin=ptmin,ptmax=ptmax,unscale=1,end=1,channel=128)
+train=jetiter([tjdata],batch_size=128,istrain=1,rc="r",etabin=etabin,pt=pt,ptmin=ptmin,ptmax=ptmax,unscale=1,end=1,channel=128)
 ptset=train.ptset
 etaset=train.etaset
 phiset=train.phiset

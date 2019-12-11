@@ -38,8 +38,13 @@ from keras.layers import Dense, Dropout, Flatten, Embedding
 from keras.layers import Conv2D, MaxPooling2D, SimpleRNN
 from keras import backend as K
 #from keras.utils import plot_model
-from jetiter import *
+import subprocess
+import random
+import warnings
+import math
+from array import array
 import numpy as np
+import ROOT as rt
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 from importlib import import_module
@@ -47,10 +52,11 @@ from sklearn.utils import shuffle
 import datetime
 start=datetime.datetime.now()
 if(args.gpu!=-1):
+  print("gpugpu")
   os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
   os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu)
-  config =tf.ConfigProto()
-  config.gpu_options.per_process_gpu_memory_fraction=0.4
+  config =tf.ConfigProto(device_count={'GPU':1})
+  config.gpu_options.per_process_gpu_memory_fraction=0.6
   set_session(tf.Session(config=config))
 
 batch_size = args.batch_size
@@ -112,7 +118,7 @@ if(args.network=="cnn"):
   loaded=np.load("/home/yulee/keras/gennc{}.npz".format(args.pt))
   X=loaded["imgset"]
 else:
-  loaded=np.load("/home/yulee/keras/gendr{}.npz".format(args.pt))
+  loaded=np.load("/home/yulee/keras/gendr128{}.npz".format(args.pt))
   X=loaded["seqset"][:,:,:,:]
 Y=loaded["labelset"]
 
@@ -134,7 +140,7 @@ pidset=loaded["pidset"]
 if(args.stride==1):
   #X=X.reshape((-1,10,33,33))
   #Y=Y.reshape((-1,2))
-  X=X[0].reshape((-1,10,33*33))
+  X=X[0]
   Y=Y[0]
 print("shape",Y.shape,X.shape)
 if(args.stride==1):history=model.fit(X,Y,batch_size=512,epochs=epochs,verbose=1,validation_split=0.3,callbacks=[checkpoint])
@@ -198,6 +204,7 @@ if(args.pred==1):
     X=loaded["imgset"]
   else:
     X=loaded["seqset"][:2,:,:,:]
+    len(np.unique(X[:,:,:,4]))
   Y=loaded["labelset"]
   X=X[:2,90000:122000]
   Y=Y[:2,90000:122000]
@@ -208,6 +215,11 @@ if(args.pred==1):
   pt=array('f',[0.])
   eta=array('f',[0.])
   pid=array('f',[0.])
+  ptd=array('f',[0.])
+  axis1=array('f',[0.])
+  axis2=array('f',[0.])
+  cmult=array('f',[0.])
+  nmult=array('f',[0.])
   trees={}
   for i in range(2):
     for jetid in ["q","g"]:
@@ -215,11 +227,17 @@ if(args.pred==1):
       trees["{}{}".format(jetid,i)].Branch("p",p,"p/F")
       trees["{}{}".format(jetid,i)].Branch("pt",pt,"pt/F")
       trees["{}{}".format(jetid,i)].Branch("eta",eta,"eta/F")
+      trees["{}{}".format(jetid,i)].Branch("phi",eta,"phi/F")
       trees["{}{}".format(jetid,i)].Branch("pid",pid,"pid/F")
+      trees["{}{}".format(jetid,i)].Branch("ptd",ptd,"ptd/F")
+      trees["{}{}".format(jetid,i)].Branch("cmult",cmult,"cmult/F")
+      trees["{}{}".format(jetid,i)].Branch("nmult",nmult,"nmult/F")
+      trees["{}{}".format(jetid,i)].Branch("axis1",axis1,"axis1/F")
+      trees["{}{}".format(jetid,i)].Branch("axis2",axis2,"axis2/F")
   label1=Y[0]
   label2=Y[1]
   if(args.stride==1):
-    X=X.reshape((-1,10,33*33))
+    #X=X.reshape((-1,10,33*33))
     Y=Y.reshape((-1,2))
   x=[]
   y=[]
@@ -230,6 +248,7 @@ if(args.pred==1):
   bpt=loaded["ptset"][:2,90000:122000]
   beta=loaded["etaset"][:2,90000:122000]
   bpid=loaded["pidset"][:2,90000:122000]
+  bbdt=loaded["bdtset"][90000:122000]
   chek=[]
   if(args.stride==2):
     if(args.mod==0):leng= len(bp[0])
@@ -242,6 +261,11 @@ if(args.pred==1):
           pt[0]=bpt[0][i]
           eta[0]=beta[0][i]
           pid[0]=bpid[0][i]
+          ptd[0]=bbdt[i][2]
+          cmult[0]=bbdt[i][0]
+          nmult[0]=bbdt[i][1]
+          axis1[0]=bbdt[i][3]
+          axis2[0]=bbdt[i][4]
           trees["{}{}".format(["q","g"][j],0)].Fill()
         if(label2[i][j]==1):
           if(args.mod==0):p[0]=bp[1][i][j]
@@ -249,6 +273,11 @@ if(args.pred==1):
           pt[0]=bpt[1][i]
           eta[0]=beta[1][i]
           pid[0]=bpid[1][i]
+          ptd[0]=bbdt[i][7]
+          cmult[0]=bbdt[i][5]
+          nmult[0]=bbdt[i][6]
+          axis1[0]=bbdt[i][8]
+          axis2[0]=bbdt[i][9]
           trees["{}{}".format(["q","g"][j],1)].Fill()
   f.Write()
   f.Close()
