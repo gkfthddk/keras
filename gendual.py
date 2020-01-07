@@ -29,7 +29,10 @@ parser.add_argument("--normb",type=float,default=1.,help='end ratio')
 parser.add_argument("--stride",type=int,default=2,help='end ratio')
 parser.add_argument("--pred",type=int,default=0,help='end ratio')
 parser.add_argument("--mod",type=int,default=0,help='end ratio')
+parser.add_argument("--rsect",type=int,default=0,help='rnn section')
+parser.add_argument("--dsect",type=int,default=0,help='dense section')
 parser.add_argument("--seed",type=str,default="",help='seed of model')
+parser.add_argument("--memo",type=str,default="",help='some memo')
 args=parser.parse_args()
 import os
 import keras
@@ -55,9 +58,11 @@ if(args.gpu!=-1):
   print("gpugpu")
   os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
   os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu)
-  config =tf.ConfigProto(device_count={'GPU':1})
-  config.gpu_options.per_process_gpu_memory_fraction=0.6
-  set_session(tf.Session(config=config))
+  #config =tf.ConfigProto(device_count={'GPU':1})
+  #config.gpu_options.per_process_gpu_memory_fraction=0.6
+  #set_session(tf.Session(config=config))
+  gpus = tf.config.experimental.list_physical_devices('GPU')
+  tf.config.experimental.set_visible_devices(gpus[0], 'GPU')
 
 batch_size = args.batch_size
 num_classes = 2 
@@ -70,7 +75,7 @@ print(epochs)
 img_rows, img_cols = 33, 33
 
 if(args.loss=="weakloss"):args.loss=weakloss
-net=import_module('symbols.symbols')
+net=import_module('/home/yulee/keras/symbols.symbols')
 try:
   onehot=net.onehot(args.network)
 except:onehot=0
@@ -78,7 +83,7 @@ if(args.mod==0):
   #if(args.network=="cnn"):model=net.jetcv(args.stride,args.seed)
   #if(args.network=="cnn"):model=net.modelss((10,33,33))
   if(args.network=="cnn"):model=net.jetcnn(args.stride,args.seed)
-  else:model=net.jetcon(args.network,args.stride,args.seed)
+  else:model=net.jetcon(args.network,args.stride,args.seed,args.rsect,args.dsect)
 else:model=net.jetconmod(args.network,args.stride,args.mod)
 if(args.opt=="sgd"):
   opt=keras.optimizers.SGD()
@@ -107,6 +112,7 @@ model.compile(loss=losses,
 savename='/home/yulee/keras/save/'+str(args.save)
 os.system("mkdir "+savename)
 os.system("rm "+savename+'/log.log')
+os.system("cp symbols/symbols.py "+savename+'/')
 #plot_model(model,to_file=savename+'/model.png')
 print("### plot done ###")
 import logging
@@ -163,6 +169,7 @@ except:
 f.write(str(history.history))
 f.close()
 print (datetime.datetime.now()-start)
+logging.info("memo "+args.memo)
 logging.info("spent time "+str(datetime.datetime.now()-start))
 logging.info("python jetdualpred.py --save {} --pt {} --stride {} --gpu {} --mod {}".format(args.save,args.pt,args.stride,args.gpu,args.mod))
 
