@@ -25,7 +25,7 @@ parser.add_argument("--voxel",type=int,default=0,help='0 or z or not')
 parser.add_argument("--eta",type=float,default=0.,help='end ratio')
 parser.add_argument("--etabin",type=float,default=2.4,help='end ratio')
 parser.add_argument("--order",type=int,default=1,help='end ratio')
-parser.add_argument("--normb",type=float,default=1.,help='end ratio')
+parser.add_argument("--rot",type=int,default=0,help='end ratio')
 parser.add_argument("--stride",type=int,default=1,help='end ratio')
 parser.add_argument("--pred",type=int,default=0,help='end ratio')
 parser.add_argument("--channel",type=int,default=4,help='end ratio')
@@ -34,9 +34,13 @@ parser.add_argument("--num_pnt",type=int,default=1024,help='rnn section')
 parser.add_argument("--seed",type=str,default="",help='seed of model')
 parser.add_argument("--memo",type=str,default="",help='some memo')
 args=parser.parse_args()
-import os
-import keras
-from keras import backend as K
+import os,sys,shutil
+#import tensorflow.keras as keras
+#from tensorflow.keras.models import Model
+#from tensorflow.keras.layers import *
+import keras as keras
+from keras.models import Model
+from keras.layers import *
 from numpy.random import seed
 #seed(101)
 #from keras.utils import plot_model
@@ -48,23 +52,10 @@ from array import array
 import numpy as np
 #import ROOT as rt
 import tensorflow as tf
-from keras.backend.tensorflow_backend import set_session
 from importlib import import_module
 from sklearn.utils import shuffle
 import datetime
 from sklearn.metrics import roc_auc_score, auc, roc_curve
-from keras import optimizers
-from keras.layers import Input
-from keras.models import Model
-from keras.engine.topology import Layer
-from keras.layers import Dense, Flatten, Reshape, Dropout, GRU
-from keras.layers import Convolution1D, MaxPooling1D, BatchNormalization
-from keras.layers import Lambda, Dot
-from keras.utils import np_utils
-def valauc(y_true,y_pred):
-   #return roc_auc_score(y_true,y_pred)
-   print(y_true,y_pred)
-   return K.mean(y_pred)
 start=datetime.datetime.now()
 if(args.gpu!=-1):
   print("gpugpu")
@@ -110,7 +101,7 @@ Created on Thu Dec 28 15:39:40 2017
 """
 
 def mat_mul(A, B):
-    return tf.matmul(A, B)
+    return tf.linalg.matmul(A, B)
 
 
 def load_h5(h5_filename):
@@ -168,7 +159,7 @@ k = 2
 channel= 4
 
 # define optimizer
-adam = optimizers.Adam(lr=0.001, decay=0.7)
+adam = keras.optimizers.Adam(lr=0.001, decay=0.7)
 
 class MatMul(Layer):
 
@@ -218,10 +209,13 @@ feat1=256
 x = Dense(feat1, activation='relu')(x)#
 x = BatchNormalization()(x)#
 x = Dense(channel*channel, weights=[np.zeros([feat1, channel*channel]), np.eye(channel).flatten().astype(np.float32)])(x)#
-input_T = Reshape((channel, channel))(x)#
+input_T = tf.keras.layers.Reshape((channel, channel))(x)#
 
 # forward net
-g = Lambda(mat_mul, arguments={'B': input_T})(input_points)# it made model too deep to train small dataset It's better not to use now
+if(sys.version_info[0]>=3):
+  g = mat_mul(input_points,input_T)# it made model too deep to train small dataset It's better not to use now
+else:
+  g = Lambda(mat_mul, arguments={'B': input_T})(input_points)# it made model too deep to train small dataset It's better not to use now
 #g = input_points
 #g = MatMul()([input_points,input_T])#
 if(2 in shap):
@@ -252,29 +246,30 @@ f = Dense(chfeat * chfeat, weights=[np.zeros([256, chfeat * chfeat]), np.eye(chf
 feature_T = Reshape((chfeat, chfeat))(f)#
 
 # forward net
-g = Lambda(mat_mul, arguments={'B': feature_T})(g)#
+if(sys.version_info[0]>=3):
+  g = mat_mul(g, feature_T)#
+else:
+  g = Lambda(mat_mul, arguments={'B': feature_T})(g)#
 #g= MatMul()([g,feature_T])#
 g = Convolution1D(64, 1, activation='relu',data_format='channels_last')(g)#
 g = BatchNormalization()(g)#
 feat5=32
-if(5 in shap):
-#if(1):
-  g = Convolution1D(128, 1, activation='relu',data_format='channels_last')(g)
-  g = BatchNormalization()(g)
-  g = Convolution1D(512, 1, activation='relu',data_format='channels_last')(g)
-  g = BatchNormalization()(g)
+g = Convolution1D(128, 1, activation='relu',data_format='channels_last')(g)
+g = BatchNormalization()(g)
+g = Convolution1D(512, 1, activation='relu',data_format='channels_last')(g)
+g = BatchNormalization()(g)
 
 # global_feature
 global_feature = Flatten()(MaxPooling1D(pool_size=num_points,data_format='channels_last')(g))#
 
 # point_net_cls
-c = Dense(512, activation='relu')(global_feature)#
+c = Dense(256, activation='relu')(global_feature)#
 c = BatchNormalization()(c)#
-c= Dropout(rate=0.7)(c)
+#c= Dropout(rate=0.7)(c)
 if(6 in shap):
   c = Dense(256, activation="relu")(c)#2 validation increase
   c = BatchNormalization()(c)#2 0.63
-c= Dropout(rate=0.7)(c)
+#c= Dropout(rate=0.7)(c)
 c = Dense(k, activation='softmax',name="output1")(c)#
 # --------------------------------------------------end of pointnet
 
@@ -289,17 +284,23 @@ if(0):#still rnn works better
 
 print(model.summary())
 
+if(sys.version_info[0]>=3):
+  model_metrics=['accuracy',keras.metrics.AUC()]
+else:
+  model_metrics=['accuracy']
 model.compile(loss=losses,
               optimizer=opt, loss_weights=lossweight,
-	      metrics=['accuracy',keras.metrics.AUC()])
+	      metrics=model_metrics)
 """model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.SGD(),
               metrics=['accuracy'])
 """
 savename='save/'+str(args.save)
-os.system("mkdir -p "+savename)
-os.system("rm "+savename+'/log.log')
-os.system("cp symbols/symbols.py "+savename+'/')
+os.makedirs(savename,exist_ok=True)
+if os.path.isfile(savename+'/log.log'):
+  os.remove(savename+'/log.log')
+shutil.copy("symbols/symbols.py",savename+'/')
+shutil.copy(__file__,savename+'/')
 #plot_model(model,to_file=savename+'/model.png')
 print("### plot done ###")
 import logging
@@ -315,9 +316,11 @@ if("gen" in args.memo):
   X=pntset[0][:,:,1:3]# [pt,eta,phi,charge,pid]
   Y=labelset[0]
 else:
-  if(args.order==1):loaded=np.load("/home/yulee/keras/order{}pnt{}.npz".format(args.pt,num_points))
+  if(args.order==1):loaded=np.load("/home/yulee/keras/pntsort{}pnt{}.npz".format(args.pt,num_points))
+  #if(args.order==1):loaded=np.load("/home/yulee/keras/order{}pnt{}.npz".format(args.pt,num_points))
   else:loaded=np.load("/home/yulee/keras/orgin{}pnt{}.npz".format(args.pt,num_points))
-  pntset=loaded["pntset"].item()
+  #pntset=loaded["pntset"].item()
+  pntset=loaded
   if("qg" in args.memo):
     el=pntset["uj"][:,:num_points,:4]
     pi=pntset["gj"][:,:num_points,:4]
@@ -332,33 +335,46 @@ else:
   if("ep" in args.memo):
     el=pntset["el"]
     pi=pntset["pi"]
-  ellabel=len(el)*[[0.,1.]]
-  pilabel=len(pi)*[[1.,0.]]
+  ellabel=len(el)*[[1.,0.]]
+  pilabel=len(pi)*[[0.,1.]]
   print("/hdfs/store/user/yulee/DRsim/order{}pnt.npz was loaded".format(args.pt))
   X,Y=shuffle(np.concatenate([el,pi]),np.concatenate([ellabel,pilabel]))
 testX=X[int(0.7*len(X)):]
 testY=Y[int(0.7*len(Y)):]
 X=X[:int(0.7*len(X))]
 Y=Y[:int(0.7*len(Y))]
+del el
+del pi
 print("shape",Y.shape,X.shape)
-for i in range(1,epochs):
-  train_points_rotate = rotate_point_cloud(X)
-  model.fit(train_points_rotate, Y, batch_size=64, epochs=1, validation_split=0.3, verbose=0)
-  #train_points_jitter = jitter_point_cloud(train_points_rotate)
-  #model.fit(train_points_jitter, Y, batch_size=64, epochs=1, shuffle=True, verbose=1)
-  #model.fit(X, Y, batch_size=128, epochs=1, shuffle=True, validation_split=0.3 verbose=1)
-  s = "Current epoch is:" + str(i)
-  print(s)
-  if i % 5 == 0:
-    train_points_rotate = rotate_point_cloud(X)
-    model.fit(train_points_rotate, Y, batch_size=64, epochs=1, validation_split=0.3, verbose=1)
-  #    tscore = model.evaluate(X, Y, verbose=0)
-  #    score = model.evaluate(testX, testY, verbose=0)
-  #    print('Train loss: ', tscore[0])
-  #    print('Train accuracy: ', tscore[1])
-  #    print('Test loss: ', score[0])
-  #    print('Test accuracy: ', score[1])
+checkpoint=keras.callbacks.ModelCheckpoint(filepath=savename+'/check_{epoch}',monitor='val_loss',verbose=0,save_weights_only=False,save_best_only=False,mode='auto',save_freq="epoch")
+#for i in range(1,epochs):
+#  if i % 1 == 0:
+#    verbose=1
+#  else:
+#    verbose=0
+#  if(args.rot):
+#    train_points_rotate = rotate_point_cloud(X)
+#    model.fit(train_points_rotate, Y, batch_size=batch_size, epochs=1, validation_split=0.3, verbose=verbose,callbacks=[checkpoint])
+#  else:
+#    model.fit(X, Y, batch_size=batch_size, epochs=1, validation_split=0.3, verbose=verbose,callbacks=[checkpoint])
+#  #train_points_jitter = jitter_point_cloud(train_points_rotate)
+#  #model.fit(train_points_jitter, Y, batch_size=64, epochs=1, shuffle=True, verbose=1)
+#  #model.fit(X, Y, batch_size=128, epochs=1, shuffle=True, validation_split=0.3 verbose=1)
+#  s = "Current epoch is:" + str(i)
+#  print(s)
+history=model.fit(X, Y, batch_size=batch_size, epochs=epochs, validation_split=0.3, verbose=1,callbacks=[checkpoint])
 
+f=open(savename+'/history','w')
+#try:
+if(1):
+  one=history.history['val_loss'].index(min(history.history['val_loss']))
+  f.write(str(one)+'\n')
+  print(one)
+  for i in range(epochs):
+    if(i!=one):shutil.rmtree(savename+"/check_"+str(i+1),ignore_errors=True)
+  #model=keras.models.load_model(savename+"/model.h5")
+  model=keras.models.load_model(savename+"/check_"+str(one+1))
+  print("epoch {} loaded".format(one+1))
 # score the model
 #model.fit(X, Y, batch_size=128, epochs=epochs, validation_split=0.3, verbose=1)
 score = model.evaluate(testX, testY, verbose=1)
@@ -370,6 +386,7 @@ f=open("/home/yulee/keras/{}.auc".format(args.memo),"a")
 f.write("{}".format(roc_auc_score(testY[:,0],bp[:,0])))
 f.write("\n")
 f.close()
+np.savez("/home/yulee/keras/drbox/{}out".format(args.memo),y=testY,p=bp)
 
 """
 #print(history.history)

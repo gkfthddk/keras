@@ -75,7 +75,7 @@ for name in namelist:#,'uj','gj']:
     #ymax=26
     #zmin=24
     #zmax=76
-  xsize=1.*(xmax-xmin)/ybin
+  xsize=1.*(xmax-xmin)/xbin
   ysize=1.*(ymax-ymin)/ybin
   zsize=1.*(zmax-zmin)/zbin
   phist=np.zeros((zbin,ybin))

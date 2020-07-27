@@ -2,16 +2,64 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-a=np.load("side2350img.npz")
-#a=np.load("rot50img.npz")
-b=a["imgset"].item()
-c=b["gj"]
-d=np.zeros(c[0][0].shape)
-d=c[474][0]
-#for i in range(len(c)):
-#  d+=c[i][4]
+#a=np.load("side2350img.npz")
+a=np.load("rot16ug50img.npz")
+#a=np.load("rot458ug50img.npz")
+#b=a["imgset"].item()
+uj=a["uj"]
+ujp=np.zeros(uj[0][0].shape)
+#d=c[474][0]
+print(len(uj))
+for i in range(16,len(uj)):
+  ujp+=uj[i][0]
+  break
 
-plt.imshow(d,origin='lower')
+gj=a["gj"]
+gjp=np.zeros(gj[0][0].shape)
+for i in range(16,len(gj)):
+  gjp+=gj[i][0]
+  break
+del gj
+del uj
+a.close()
+#a=np.load("rot1650img.npz")
+a=np.load("elvars10to100img.npz")
+el=a["el"]
+elp=np.zeros(el[0][0].shape)
+#d=c[474][0]
+print(el.shape)
+for i in range(16,len(el)):
+  elp+=el[i][0]
+#pi=a["pi"]
+pip=np.zeros(el[0][0].shape)
+#pip=np.zeros(pi[0][0].shape)
+#d=c[474][0]
+#for i in range(16,len(pi)):
+#  pip+=pi[15712][0]
+#  break
+#gjp[y][x]
+#gjp[zin][yin]
+#z=eta y=phi
+#gjp[eta][phi]
+#eta|
+#   ---phi
+
+fig,B=plt.subplots(ncols=2,nrows=2,figsize=(8,8))
+B[0][0].imshow(ujp,origin="lower")
+B[0][0].title.set_text("Quark SiPM energy")
+B[0][1].imshow(gjp,origin="lower")
+B[0][1].title.set_text("Gluon SiPM energy")
+B[1][0].imshow(elp,origin="lower")
+B[1][0].title.set_text("Electron SiPM energy")
+B[1][1].imshow(pip,origin="lower")
+B[1][1].title.set_text("Pion SiPM energy")
+for i in range(2):
+  for j in range(2):
+    B[i][j].set_xticks([])
+    B[i][j].set_yticks([])
+    B[i][j].set_xlabel("$\phi$",fontsize=10)
+    B[i][j].set_ylabel("$\eta$",fontsize=10)
+plt.show()
 """
 vox=a["voxels"].item()
 gj=vox["gj"]

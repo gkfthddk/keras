@@ -27,7 +27,7 @@ voxels={}
 if(pt==20):
   namelist=["pi","el","ga"]
 if(pt==50):
-  namelist=["uj","gj","pi","el","ga"]
+  namelist=["pi","el","ga"]
 for name in namelist:#,'uj','gj']:
   infile=rt.TFile("/home/yulee/geant4/tester/analysis/{}{}sum.root".format(name,pt),'read')
   event=infile.Get("event")
@@ -85,8 +85,8 @@ for name in namelist:#,'uj','gj']:
   zcent=zmax/2.+zmin/2.
   for num_entry in range(event.GetEntries()):
     event.GetEntry(num_entry)
-    for rot in range(8):
-      rotation_angle = np.random.uniform() * 2 * np.pi
+    for rot in range(1):
+      rotation_angle = 0.
       cosval = np.cos(rotation_angle)
       sinval = np.sin(rotation_angle)
       if("j" in name):
@@ -198,6 +198,6 @@ for name in namelist:#,'uj','gj']:
   voxels[name]=np.array(voxel,dtype='float32')
 #np.savez_compressed("/home/yulee/keras/rot23ug{}img".format(pt),uj=imgset["uj"],gj=imgset["gj"])
 #np.savez_compressed("/home/yulee/keras/rot23ug{}vox".format(pt),uj=voxels["uj"],gj=voxels["gj"])
-np.savez_compressed("/home/yulee/keras/rot23egp{}img".format(pt),el=imgset["el"],ga=imgset["ga"],pi=imgset["pi"])
-np.savez_compressed("/home/yulee/keras/rot23egp{}vox".format(pt),el=voxels["el"],ga=voxels["ga"],pi=voxels["pi"])
+np.savez_compressed("/home/yulee/keras/egp{}img".format(pt),el=imgset["el"],ga=imgset["ga"],pi=imgset["pi"])
+np.savez_compressed("/home/yulee/keras/egp{}vox".format(pt),el=voxels["el"],ga=voxels["ga"],pi=voxels["pi"])
 print(datetime.now()-now)
