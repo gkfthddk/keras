@@ -1,7 +1,11 @@
 import numpy as np
+from array import array
 import tensorflow as tf
 import ROOT as rt
 import datetime
+import tensorflow.keras as keras
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import *
 
 def rotate_point_cloud(batch_data):
     """ Randomly rotate the point clouds to augument the dataset
@@ -25,7 +29,7 @@ def rotate_point_cloud(batch_data):
         rotated_data[k, ...] = np.dot(shape_pc.reshape((-1, 5)),rotation_matrix)
     return rotated_data
 class DataGenerator(tf.keras.utils.Sequence):
-    def __init__(self,data, batch_size=32, num_classes=None, data_form="pixel",num_channel=None,rotation=False):
+    def __init__(self,data, batch_size=32, num_classes=None, data_form="pixel",num_channel=None,num_points=2048,rotation=False,pix=23):
         self.batch_size = batch_size
         self.num_classes = num_classes
         data_forms={"pixel":0,"voxel":1,"point":2}
@@ -45,14 +49,16 @@ class DataGenerator(tf.keras.utils.Sequence):
         if(not num_channel):
           num_channel=self.default_channel
         self.num_channel=num_channel
-        data_shapes={"pixel":(num_channel,23,23),"voxel":(num_channel,23,23,23),"point":(2048,num_channel)}
+        self.num_points=num_points
+        self.pix=pix
+        data_shapes={"pixel":(num_channel,pix,pix),"voxel":(num_channel,pix,pix,pix),"point":(num_points,num_channel)}
         self.data_shape=data_shapes[data_form]
 
         self.rotation=rotation
         self.on_epoch_end()
 
     def __len__(self):
-        return int(sum(self.total_len) // self.batch_size) # number of batches
+        return int(sum(self.total_len) // self.batch_size)-1 # number of batches
 
     def __getitem__(self, index):
         #index = self.index[index * self.batch_size : (index + 1) * self.batch_size] # batch index list
@@ -67,6 +73,8 @@ class DataGenerator(tf.keras.utils.Sequence):
         self.test=False
         #if self.shuffle == True:
         #    np.random.shuffle(self.index)
+    def GetEntry(pick,entry):
+        self.data[pick].GetEntry(entry)
     def get_test(self):
         self.test=True
         Xout,Yout= self.__get_data(sum(self.total_len))
@@ -77,23 +85,28 @@ class DataGenerator(tf.keras.utils.Sequence):
         X=[]
         Y=[]
         pick=0
-        now=datetime.datetime.now() 
-        for i in xrange(batch_size):
+        num_data=0
+        #now=datetime.datetime.now() 
+        for i in range(batch_size):
           if(self.test==True):
             if(pick==self.num_classes):
               break
           else:
             pick=np.random.choice(self.num_classes,p=self.choice_p) # 0 background 1 signal
+          num_data+=1
           self.data[pick].GetEntry(self.ent[pick])
           if(self.data_form==0):
-            X.append([self.data[pick].image_ecor_s,self.data[pick].image_ecor_c,self.data[pick].image_n_s,self.data[pick].image_n_c])
+            if(self.pix==90):
+              X.append([array("f",self.data[pick].image90_ecor_s),array("f",self.data[pick].image90_ecor_c),array("i",self.data[pick].image90_n_s),array("i",self.data[pick].image90_n_c)])
+            else:
+              X.append([array("f",self.data[pick].image_ecor_s),array("f",self.data[pick].image_ecor_c),array("i",self.data[pick].image_n_s),array("i",self.data[pick].image_n_c)])
           if(self.data_form==1):
-            X.append([self.data[pick].voxel_ecor_s,self.data[pick].voxel_n_s])
+            X.append([array("f",self.data[pick].voxel_ecor_s),array("i",self.data[pick].voxel_n_s)])
           if(self.data_form==2):
             points=[]#phi eta depth s c 
             point_len=len(self.data[pick].fiber_depth)
             if(0):
-              for j in range(2048):
+              for j in range(self.num_points):
                 if(j<point_len):
                   points.append([float(self.data[pick].fiber_phi[j]),float(self.data[pick].fiber_eta[j]),float(self.data[pick].fiber_depth[j]),float(self.data[pick].fiber_ecor[j]),float(bool(self.data[pick].fiber_iscerenkov[j]))])
                 else:
@@ -101,10 +114,11 @@ class DataGenerator(tf.keras.utils.Sequence):
             if(1):
               #points=np.array([np.array(self.data[pick].fiber_phi),np.array(self.data[pick].fiber_eta),np.array(self.data[pick].fiber_depth),np.array(self.data[pick].fiber_ecor),np.array(self.data[pick].fiber_iscerenkov,dtype="bool")]).transpose()
               points=np.array([np.array(self.data[pick].fiber_phi),np.array(self.data[pick].fiber_eta),np.array(self.data[pick].fiber_depth),np.array(self.data[pick].fiber_ecor_s),np.array(self.data[pick].fiber_ecor_c)]).transpose()
-              if(point_len<2048):
-                points=np.concatenate([points,np.zeros((2048-point_len,self.default_channel))])
+              points=sorted(points, key=lambda pnt:pnt[3],reverse=True)
+              if(point_len<self.num_points):
+                points=np.concatenate([points,np.zeros((self.num_points-point_len,self.default_channel))])
               else:
-                points=points[:2048]
+                points=points[:self.num_points]
                
             X.append(points)
           label=[0.]*self.num_classes
@@ -112,6 +126,9 @@ class DataGenerator(tf.keras.utils.Sequence):
           Y.append(label)
           self.ent[pick]+=1
           if(self.ent[pick]==self.total_len[pick]):
+            if(self.choice_p[pick]==1.):
+              break
+
             if(self.test==True):
               pick=pick+1
             else:
@@ -121,23 +138,24 @@ class DataGenerator(tf.keras.utils.Sequence):
                 if(k!=pick):
                   self.choice_p[k]+=self.choice_p[k]*self.choice_p[pick]/(1-self.choice_p[pick])
               self.choice_p[pick]=0.
+              #print("!@#!@#",self.choice_p)
           
         if(self.data_form==0):
-          Xout=np.array(X,dtype='float32').reshape((batch_size,self.default_channel,23,23))
+          Xout=np.array(X,dtype='float32').reshape((num_data,self.default_channel,self.pix,self.pix))
           Xout=Xout[:,:self.num_channel]
         if(self.data_form==1):
-          Xout=np.array(X,dtype='float32').reshape((batch_size,self.default_channel,23,23,23))
+          Xout=np.array(X,dtype='float32').reshape((num_data,self.default_channel,self.pix,self.pix,self.pix))
           Xout=Xout[:,:self.num_channel]
         if(self.data_form==2):
-          Xout=np.array(X,dtype='float32').reshape((batch_size,2048,self.default_channel))
+          Xout=np.array(X,dtype='float32').reshape((num_data,self.num_points,self.default_channel))
           if(self.rotation==True):
             Xout=rotate_point_cloud(Xout)
           Xout=Xout[:,:,:self.num_channel]
         Yout=np.array(Y,dtype='float32')
-        print(datetime.datetime.now()-now)
+        #print(datetime.datetime.now()-now)
         return Xout, Yout
 import inspect
-def prepare_data(data_path, num_files=500,tree_name="event",train_cut=0.7,val_cut=0.3,shuffle=False,   batch_size=32, num_classes=None,data_form="pixel",num_channel=None,rotation=False):
+def prepare_data(data_path, num_files=500,tree_name="event",train_cut=0.7,val_cut=0.3,shuffle=False,   batch_size=32, num_classes=None,data_form="pixel",num_channel=None,num_points=2048,rotation=False,pix=23):
   trainchain=[]
   valchain=[]
   testchain=[]
@@ -161,27 +179,101 @@ def prepare_data(data_path, num_files=500,tree_name="event",train_cut=0.7,val_cu
   #print(prepare_data.__code__.co_varnames)
   #print(inspect.getargvalues(inspect.currentframe()))
 
-  traindata=DataGenerator(trainchain,batch_size=batch_size, num_classes=num_classes,data_form=data_form,num_channel=num_channel,rotation=rotation)
-  valdata=DataGenerator(valchain,batch_size=batch_size, num_classes=num_classes,data_form=data_form,num_channel=num_channel,rotation=rotation)
-  testdata=DataGenerator(testchain,batch_size=batch_size, num_classes=num_classes,data_form=data_form,num_channel=num_channel,rotation=rotation)
+  traindata=DataGenerator(trainchain,batch_size=batch_size, num_classes=num_classes,data_form=data_form,num_channel=num_channel,num_points=num_points,rotation=rotation,pix=pix)
+  valdata=DataGenerator(valchain,batch_size=batch_size, num_classes=num_classes,data_form=data_form,num_channel=num_channel,num_points=num_points,rotation=rotation,pix=pix)
+  testdata=DataGenerator(testchain,batch_size=batch_size, num_classes=num_classes,data_form=data_form,num_channel=num_channel,num_points=num_points,rotation=rotation,pix=pix)
   return traindata, valdata, testdata
 
 
+def mat_mul(A, B):
+    return tf.linalg.matmul(A, B)
+def jitter_point_cloud(batch_data, sigma=0.01, clip=0.05):
+    """ Randomly jitter points. jittering is per point.
+        Input:
+          BxNx3 array, original batch of point clouds
+        Return:
+          BxNx3 array, jittered batch of point clouds
+    """
+    B, N, C = batch_data.shape
+    assert(clip > 0)
+    jittered_data = np.clip(sigma * np.random.randn(B, N, C), -1 * clip, clip)
+    jittered_data += batch_data
+    return jittered_data
+
+def tblock(g,channel,feat=64,loop=2,num_points=2048):
+  x=g
+  for i in range(loop):
+    x=Convolution1D(feat,1,activation='relu',data_format='channels_last')(x)
+    x=BatchNormalization()(x)
+  x=MaxPooling1D(pool_size=num_points,data_format='channels_last')(x)
+  for i in range(loop):
+    x=Dense(feat,activation='relu')(x)
+    x=BatchNormalization()(x)
+  x=Dense(channel*channel,weights=[np.zeros([feat,channel*channel]),np.eye(channel).flatten().astype(np.float32)])(x)
+  T=Reshape((channel,channel))(x)
+  return mat_mul(g,T)
+
+def pointmodel(num_points=2048,channel=4,num_classes=2):
+  
+  # define optimizer
+  adam = keras.optimizers.Adam(lr=0.001, decay=0.7)
+  #adam = keras.optimizers.Adam()
+  
+  input_points = Input(shape=(num_points,channel ))#
+  g=tblock(input_points,channel=4,feat=64,loop=1,num_points=num_points)
+  chfeat=16
+  g = Convolution1D(chfeat, 1, input_shape=(num_points, channel), activation='relu',data_format='channels_last')(g)#
+  g = BatchNormalization()(g)#
+  
+  g=tblock(g,channel=chfeat,feat=64,loop=1,num_points=num_points)
+  
+  #g = Convolution1D(512, 1, activation='relu',data_format='channels_last')(g)
+  #g = BatchNormalization()(g)
+  #global_feature = Flatten()(MaxPooling1D(pool_size=num_points,data_format='channels_last')(g))#if use maxpooling many features needed
+  g = Convolution1D(64, 1, activation='relu',data_format='channels_last')(g)
+  g = BatchNormalization()(g)
+  g = Convolution1D(1, 1, activation='relu',data_format='channels_first')(g)
+  g = BatchNormalization()(g)
+  global_feature = Flatten()(g)
+  #g = Convolution1D(512, 1, activation='relu',data_format='channels_last')(g)
+  #g = BatchNormalization()(g)
+  
+  # global_feature
+  
+  # point_net_cls
+  #c = Dense(256, activation='relu')(global_feature)#
+  #c = BatchNormalization()(c)#
+  #c= Dropout(rate=0.7)(c)
+  #c = Dense(256, activation="relu")(c)#2 validation increase
+  #c = BatchNormalization()(c)#2 0.63
+  #c= Dropout(rate=0.7)(c)
+  #c = Dense(num_classes, activation='softmax',name="output1")(c)#
+  c = Dense(num_classes, activation='softmax',name="output1")(global_feature)#
+  # --------------------------------------------------end of pointnet
+  
+  # print the model summary
+  #model = Model(inputs=input_points, outputs=prediction)
+  return Model(inputs=input_points, outputs=c)
+
+
 if __name__== '__main__':
-  #sigchain=rt.TChain("event")
-  #bakchain=rt.TChain("event")
-  trainchain=[rt.TChain("event"),rt.TChain("event")]
-  for i in range(20):
-    #sigchain.Add("/pad/yulee/geant4/tester/analysis/fast/uJet50GeV_fastsim_{}.root".format(i))
-    #bakchain.Add("/pad/yulee/geant4/tester/analysis/fast/gJet50GeV_fastsim_{}.root".format(i))
-    trainchain[0].Add("/pad/yulee/geant4/tester/analysis/fast/uJet50GeV_fastsim_{}.root".format(i))
-    trainchain[1].Add("/pad/yulee/geant4/tester/analysis/fast/gJet50GeV_fastsim_{}.root".format(i))
-  a=DataGenerator(trainchain,data_form="point",batch_size=512)
-  b=a.__getitem__(10)
-  b=a.__getitem__(10)
-  b=a.__getitem__(10)
+  #trainchain=[rt.TChain("event"),rt.TChain("event")]
+  #for i in range(20):
+  #  trainchain[0].Add("/pad/yulee/geant4/tester/analysis/fast/uJet50GeV_fastsim_{}.root".format(i))
+  #  trainchain[1].Add("/pad/yulee/geant4/tester/analysis/fast/gJet50GeV_fastsim_{}.root".format(i))
+  #a=DataGenerator(trainchain,data_form="point",batch_size=512)
+  #b=a.__getitem__(10)
+  #b=a.__getitem__(10)
+  #b=a.__getitem__(10)
   path=["/pad/yulee/geant4/tester/analysis/fast/uJet50GeV_fastsim_{}.root","/pad/yulee/geant4/tester/analysis/fast/gJet50GeV_fastsim_{}.root"]
-  train,val,test=prepare_data(path,data_form="point")
+  train,val,test=prepare_data(path,data_form="pixel",batch_size=64,pix=90,num_channel=4)
   print(train.total_len,val.total_len,test.total_len)
   x,y=test.get_test()
+  np.savez("pix90.npz",x=x,y=y)
+  train,val,test=prepare_data(path,data_form="point",batch_size=64,num_channel=4)
+  x,y=test.get_test()
+  np.savez("point.npz",x=x,y=y)
   print(x.shape,y.shape)
+  #print(test.__len__())
+  #for i in range(test.__len__()):
+  #  x,y=test.__getitem__(0)
