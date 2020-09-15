@@ -23,9 +23,10 @@ parser.add_argument("--batch_size",type=int,default=512,help='batch_size')
 parser.add_argument("--loss",type=str,default="categorical_crossentropy",help='network name on symbols/')
 parser.add_argument("--gpu",type=int,default=0,help='gpu number')
 parser.add_argument("--voxel",type=int,default=0,help='0 or z or not')
+parser.add_argument("--target",type=int,default=1,help='end ratio')
 parser.add_argument("--pix",type=int,default=90,help='end ratio')
 parser.add_argument("--num_files",type=int,default=500,help='end ratio')
-parser.add_argument("--stride",type=int,default=1,help='end ratio')
+parser.add_argument("--stride",type=str,default="1,2,3,4",help='end ratio')
 parser.add_argument("--num_point",type=int,default=2048,help='end ratio')
 parser.add_argument("--channel",type=int,default=4,help='end ratio')
 parser.add_argument("--dform",type=str,default="pixel",help='pixel voxel point')
@@ -77,7 +78,6 @@ num_classes = 2
 epochs = args.epochs
 print(epochs)
 # input image dimensions
-if(args.loss=="weakloss"):args.loss=weakloss
 net=import_module('symbols.symbols')
 channel=args.channel
 if(args.opt=="sgd"):
@@ -87,32 +87,21 @@ if(args.opt=="rms"):
 if(args.opt=="adam"):
   opt=keras.optimizers.Adam()
 losses=args.loss
-if(args.stride==2):
-  if(args.mod==0):
-    losses={"output1" : args.loss,"output2" : args.loss}
-    lossweight={"output1" : 1.0, "output2" : 1.0}
-  else:
-    losses=losses={"output" : args.loss}
-    lossweight= {"output" : 1.0}
-else:
-  losses=losses={"output1" : args.loss}
-  lossweight= {"output1" : 1.0}
+losses={}
+lossweight={}
+stride=[int(i) for i in args.stride.split(",")]
+for i in stride:
+  losses["output{}".format(i)]=args.loss
+  lossweight["output{}".format(i)]=1.0
+  #losses={"output1" : args.loss}
+  #lossweight= {"output1" : 1.0}
 
 data_path=["/pad/yulee/geant4/tester/analysis/fast/uJet50GeV_fastsim_{}.root","/pad/yulee/geant4/tester/analysis/fast/gJet50GeV_fastsim_{}.root"]
-traindata,valdata,testdata=prepare_data(data_path,args.num_files,data_form=args.dform,batch_size=batch_size,num_channel=channel,num_point=args.num_point,pix=args.pix)
+traindata,valdata,testdata=prepare_data(data_path,args.num_files,data_form=args.dform,batch_size=batch_size,num_channel=channel,num_point=args.num_point,pix=args.pix,target=1,stride=stride)
 if(args.dform=="pixel"):
-  if(args.seed=="a"):
-    model=net.rootmodelp(traindata.data_shape)
-  elif(args.seed=="b"):
-    model=net.rootmodel0(traindata.data_shape)
-  elif(args.seed=="bd"):
-    model=net.rootmodel0d(traindata.data_shape)
-  elif(args.pix==90):
-    model=net.rootmodelc(traindata.data_shape)
-  else:
-    model=net.drmodel0(traindata.data_shape)
+    model=net.peakmodelc(traindata.data_shape,stride)
 if(args.dform=="point"):
-  model=pointmodel(args.num_point,channel)
+  model=pointmodel(args.num_point,channel,peak=1)
 if(args.dform=="voxel"):
   model=net.dr3dmodel3(traindata.data_shape)
 if(sys.version_info[0]>=3):
@@ -121,7 +110,7 @@ else:
   model_metrics=['accuracy']
 model.compile(loss=losses,
               optimizer=opt, loss_weights=lossweight,
-        metrics=model_metrics)
+        metrics=["mse","mae"])
 
 
 savename='save/'+str(args.save)
@@ -163,57 +152,20 @@ f.close()
 print (datetime.datetime.now()-start)
 logging.info("memo "+args.memo)
 logging.info("spent time "+str(datetime.datetime.now()-start))
-logging.info("python jetdualpred.py --save {} --pt {} --stride {} --gpu {} --mod {}".format(args.save,args.pt,args.stride,args.gpu,args.mod))
+logging.info("python jetdualpred.py --save {} --pt {} --stride {} --gpu {} --mod {}".format(args.save,args.pt,stride,args.gpu,args.mod))
 import matplotlib.pyplot as plt
 testX,testY=testdata.get_test()
 bp=model.predict(testX,verbose=0)
 #bp=model.predict(X[int(0.4*len(X)):],verbose=0)
-fpr,tpr,thresholds=roc_curve(testY[:,0],bp[:,0])
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+y=[]
+name=[]
+for i in range(len(stride)):
+  mseloss=mean_squared_error(testY["output{}".format(stride[i])],bp[i])
+  maeloss=mean_absolute_error(testY["output{}".format(stride[i])],bp[i])
+  y.append(testY["output{}".format(stride[i])])
+  name.append("output{}".format(stride[i]))
+  print("ourput {} test mse".format(stride[i]),mseloss,"test mae",maeloss)
 #fpr,tpr,thresholds=roc_curve(Y[int(0.6*len(Y)):][:,0],bp[:,0])
-fs=25
-tnr=1-fpr
-try:
-  plt.figure(figsize=(12, 8))
-  if("qg" in args.memo):
-    plt.xlabel("Quark Efficiency", fontsize=fs*1.2)
-    plt.ylabel("Gluon Rejection", fontsize=fs*1.2)
-  if("ep" in args.memo):
-    plt.xlabel("e- Efficiency", fontsize=fs*1.2)
-    plt.ylabel("pi+ Rejection", fontsize=fs*1.2)
-  if("gp" in args.memo):
-    plt.xlabel("gamma Efficiency", fontsize=fs*1.2)
-    plt.ylabel("pi+ Rejection", fontsize=fs*1.2)
-  if("eg" in args.memo):
-    plt.xlabel("e- Efficiency", fontsize=fs*1.2)
-    plt.ylabel("gamma Rejection", fontsize=fs*1.2)
-  if("egp" in args.memo):
-    plt.xlabel("Signal Efficiency", fontsize=fs*1.2)
-    plt.ylabel("Background Rejection", fontsize=fs*1.2)
-    fpr={}
-    tpr={}
-    for i,sam in zip(range(3),["e-","gamma","pi+"]):
-      fpr,tpr,thresholds=roc_curve(testeY[:,i],bp[:,i])
-      tnr=1-fpr
-      label="{} AUC:{}".format(sam,round(roc_auc_score(testY[:,0],bp[:,0]),4))
-      plt.plot(tpr,tnr,lw=3.5,label=label,linestyle="-")
-    plt.legend(loc=3, fontsize=fs*0.5)
-    plt.grid(alpha=0.6)
-    plt.axis((0,1,0,1))
-    plt.savefig("/home/yulee/keras/drbox/{}.png".format(args.memo),bbox_inches='tight',pad_inches=0.5)
-  plt.tick_params(labelsize=fs)
-  if(not "egp" in args.memo):
-    label="AUC:{}".format(round(roc_auc_score(testY[:,0],bp[:,0]),4))
-    plt.plot(tpr,tnr,lw=3.5,label=label,linestyle="-")
-    plt.legend(loc=3, fontsize=fs*0.9)
-    plt.grid(alpha=0.6)
-    plt.axis((0,1,0,1))
-    plt.savefig("/home/yulee/keras/drbox/{}.png".format(args.memo),bbox_inches='tight',pad_inches=0.5)
-except:
-  pass
-print("AUC:{}".format(round(roc_auc_score(testY[:,0],bp[:,0]),4)))
-f=open("/pad/yulee/keras/drbox/{}.auc".format(args.memo),"a")
-f.write("{}".format(roc_auc_score(testY[:,0],bp[:,0])))
-f.write("\n")
-f.close()
-np.savez("/pad/yulee/keras/drbox/{}out".format(args.memo),y=testY,p=bp)
+np.savez("/pad/yulee/keras/drbox/{}out".format(args.memo),y=y,p=bp,name=name)
 #label="AUC:{}".format(round(roc_auc_score(Y[int(0.6*len(Y)):][:,0],bp[:,0]),4))
